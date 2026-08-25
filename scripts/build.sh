@@ -22,7 +22,6 @@ mkdir -p "${OUT_DIR}"
 "${root}/scripts/prepare-sources.sh" "${build_root}"
 
 kernel_image="${LOCAL_REGISTRY}/talos-asahi/kernel:${ASAHI_KERNEL_VERSION}-asahi.${BUILD_REVISION}"
-overlay_image="${LOCAL_REGISTRY}/talos-asahi/sbc-asahi:${OVERLAY_VERSION}"
 imager_image="local/talos-asahi/imager:${RELEASE_TAG}"
 
 printf 'building Asahi kernel image %s\n' "${kernel_image}"
@@ -31,13 +30,6 @@ printf 'building Asahi kernel image %s\n' "${kernel_image}"
   PROGRESS="${PROGRESS}" \
   TARGET_ARGS="--tag=${kernel_image} --output=type=docker"
 docker push "${kernel_image}"
-
-printf 'building sbc-asahi overlay image %s\n' "${overlay_image}"
-"${make_cmd}" -C "${build_root}/sbc-asahi" target-sbc-asahi \
-  PLATFORM=linux/arm64 \
-  PROGRESS="${PROGRESS}" \
-  TARGET_ARGS="--tag=${overlay_image} --output=type=docker"
-docker push "${overlay_image}"
 
 printf 'building patched Talos imager %s\n' "${imager_image}"
 "${make_cmd}" -C "${build_root}/talos" target-imager \
@@ -83,7 +75,6 @@ ASAHI_KERNEL_VERSION=${ASAHI_KERNEL_VERSION}
 ASAHI_KERNEL_SHA=${ASAHI_KERNEL_SHA}
 RELEASE_TAG=${RELEASE_TAG}
 LOCAL_KERNEL_IMAGE=${kernel_image}
-LOCAL_OVERLAY_IMAGE=${overlay_image}
 LOCAL_IMAGER_IMAGE=${imager_image}
 EOF
 

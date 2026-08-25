@@ -25,14 +25,11 @@ if [[ "${PUBLISH_LATEST}" == "true" ]]; then
   docker push "${TARGET_REPOSITORY}/installer:latest"
 fi
 
-# Publish build components as traceable, optional inputs for later debugging.
+# Publish the kernel as a traceable, optional input for later debugging.
 # shellcheck disable=SC1090
 source "${OUT_DIR}/build.env"
 kernel_ref="${TARGET_REPOSITORY}/kernel:${ASAHI_KERNEL_VERSION}-asahi.${BUILD_REVISION}"
-overlay_ref="${TARGET_REPOSITORY}/sbc-asahi:${OVERLAY_VERSION}"
 docker tag "${LOCAL_KERNEL_IMAGE}" "${kernel_ref}"
-docker tag "${LOCAL_OVERLAY_IMAGE}" "${overlay_ref}"
 docker push "${kernel_ref}"
-docker push "${overlay_ref}"
 
 printf 'published %s\n' "${installer_ref}"

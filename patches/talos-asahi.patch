@@ -44,26 +44,6 @@ index 6c7e2a8..48eb3fe 100644
  COMMON_ARGS += --build-arg=PKG_KMOD=$(PKG_KMOD)
  COMMON_ARGS += --build-arg=PKG_LIBAIO=$(PKG_LIBAIO)
  COMMON_ARGS += --build-arg=PKG_LIBARCHIVE=$(PKG_LIBARCHIVE)
-diff --git a/cmd/installer/cmd/imager/root.go b/cmd/installer/cmd/imager/root.go
-index 15ad9cd..522f535 100644
---- a/cmd/installer/cmd/imager/root.go
-+++ b/cmd/installer/cmd/imager/root.go
-@@ -120,12 +120,14 @@ var rootCmd = &cobra.Command{
- 					prof.Overlay = &profile.OverlayOptions{
- 						Name: cmdFlags.OverlayName,
- 						Image: profile.ContainerAsset{
--							ImageRef: cmdFlags.OverlayImage,
-+							ImageRef:      cmdFlags.OverlayImage,
-+							ForceInsecure: cmdFlags.Insecure,
- 						},
- 						ExtraOptions: extraOverlayOptions,
- 					}
- 
- 					prof.Input.OverlayInstaller.ImageRef = cmdFlags.OverlayImage
-+					prof.Input.OverlayInstaller.ForceInsecure = cmdFlags.Insecure
- 				}
- 
- 				prof.Input.SystemExtensions = xslices.Map(
 diff --git a/hack/modules-arm64.txt b/hack/modules-arm64.txt
 index 9cb2afe..5b6b3e5 100644
 --- a/hack/modules-arm64.txt

@@ -15,9 +15,8 @@ worker. This is not an upstream-supported Talos platform.
   platform drivers.
 - Uses 16 KiB pages because this Asahi kernel still requires them for Apple
   PCIe. That is a known container-compatibility tradeoff.
-- Adds an `sbc-asahi` overlay whose installer deliberately leaves m1n1, U-Boot,
-  Apple firmware, and the paired Asahi recovery layout untouched.
-- Makes Talos propagate `--insecure` when a local overlay registry is used.
+- Reuses the already installed m1n1, U-Boot, Apple firmware, and Asahi ESP;
+  there is no board overlay or platform installer in the update path.
 - Makes sd-boot updates use `loader/loader.conf` as the authoritative default.
   EFI variable reads, writes, and boot-entry creation become best effort, which
   is necessary for the Asahi U-Boot environment used in testing.
@@ -80,13 +79,12 @@ three source pins, applies every patch with `git apply --check`, and runs the
 focused Talos sd-boot unit tests.
 
 `Build and publish Asahi Talos` runs manually or when a matching release tag is
-pushed. It uses GitHub's native ARM64 runner, builds the kernel, overlay, and
-Talos imager, verifies the final artifacts, and optionally publishes:
+pushed. It uses GitHub's native ARM64 runner, builds the kernel and Talos
+imager, verifies the final artifacts, and optionally publishes:
 
 ```text
 ghcr.io/OWNER/talos-asahi/installer:<release>
 ghcr.io/OWNER/talos-asahi/kernel:<kernel-release>
-ghcr.io/OWNER/talos-asahi/sbc-asahi:<overlay-release>
 ```
 
 For a release, update `versions.env`, make sure the patches still apply, bump
@@ -121,7 +119,6 @@ All refs are recorded in `versions.env`. The current build uses:
 
 - Talos `3ebd10a7c1bd0f81742bdcd0c3fe56d727db7401`
 - Talos pkgs `f541ca434ee63964319bb912e370f0ed407f8a18`
-- sbc-template `c9ac1386c86e37bcee0e5daf21ffaa958240e081`
 - AsahiLinux/linux `77cb8f24c2381a8abb7272d7bbdec548d6426a8a`
 
 Do not write a generated raw disk image over the whole internal Apple NVMe.
