@@ -1,0 +1,103 @@
+name: Build and publish Asahi Talos
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish installer and component images to GHCR
+        required: true
+        type: boolean
+        default: false
+      publish_latest:
+        description: Also move the installer:latest tag
+        required: true
+        type: boolean
+        default: false
+  push:
+    tags:
+      - 'v*-asahi.*'
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: talos-asahi-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 360
+    env:
+      LOCAL_REGISTRY: localhost:5000
+      PROGRESS: plain
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Buildx with local registry access
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: network=host
+          buildkitd-config-inline: |
+            [registry."localhost:5000"]
+              http = true
+              insecure = true
+
+      - name: Start ephemeral build registry
+        run: |
+          docker run --detach --rm --name talos-asahi-registry \
+            --publish 127.0.0.1:5000:5000 registry:2
+          for _ in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:5000/v2/ >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          exit 1
+
+      - name: Resolve release tag
+        shell: bash
+        run: |
+          talos_version="$(sed -n 's/^TALOS_VERSION=//p' versions.env)"
+          build_revision="$(sed -n 's/^BUILD_REVISION=//p' versions.env)"
+          release_tag="${talos_version}-asahi.${build_revision}"
+          if [[ "${GITHUB_REF_TYPE}" == "tag" && "${GITHUB_REF_NAME}" != "${release_tag}" ]]; then
+            echo "tag ${GITHUB_REF_NAME} does not match versions.env release ${release_tag}" >&2
+            exit 1
+          fi
+          echo "RELEASE_TAG=${release_tag}" >>"${GITHUB_ENV}"
+          echo "TARGET_REPOSITORY=ghcr.io/${GITHUB_REPOSITORY,,}" >>"${GITHUB_ENV}"
+
+      - name: Log in to GHCR
+        if: github.event_name == 'push' || inputs.publish
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build installer and boot bundle
+        run: ./scripts/build.sh
+
+      - name: Publish GHCR images
+        if: github.event_name == 'push' || inputs.publish
+        env:
+          PUBLISH_LATEST: ${{ github.event_name == 'push' || inputs.publish_latest }}
+        run: ./scripts/publish.sh
+
+      - name: Upload boot bundle and installer archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: talos-asahi-${{ env.RELEASE_TAG }}
+          path: |
+            dist/BOOTAA64.EFI
+            dist/Talos-*.efi
+            dist/loader.conf
+            dist/installer-arm64.tar
+            dist/SHA256SUMS
+            dist/build.env
+          if-no-files-found: error
+          retention-days: 30
