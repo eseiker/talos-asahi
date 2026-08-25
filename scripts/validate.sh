@@ -20,6 +20,8 @@ docker run --rm \
   -v talos-asahi-go-mod:/go/pkg/mod \
   -v talos-asahi-go-build:/root/.cache/go-build \
   -w /src golang:1.26 \
-  go test ./internal/app/machined/pkg/runtime/v1alpha1/bootloader/sdboot
+  go test \
+    ./internal/app/lifecycle \
+    ./internal/app/machined/pkg/runtime/v1alpha1/bootloader/sdboot
 
-printf 'source and sd-boot validation passed for %s\n' "${RELEASE_TAG}"
+printf 'source, lifecycle, and sd-boot validation passed for %s\n' "${RELEASE_TAG}"

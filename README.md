@@ -20,6 +20,10 @@ worker. This is not an upstream-supported Talos platform.
 - Makes sd-boot updates use `loader/loader.conf` as the authoritative default.
   EFI variable reads, writes, and boot-entry creation become best effort, which
   is necessary for the Asahi U-Boot environment used in testing.
+- Allows Omni's `os:operator` role to call the streaming upgrade API only for
+  digest-pinned installer images in `ghcr.io/eseiker/talos-asahi/installer`.
+  Upstream Talos normally requires `os:admin`, while Omni deliberately exposes
+  only `os:operator` for ordinary managed-node access.
 
 The generated installer does not contain an Omni join token, a machine config,
 or a static `ip=` argument. Existing Talos machine configuration remains in the
@@ -30,7 +34,7 @@ STATE partition during a normal upgrade.
 For a repository named `OWNER/talos-asahi`, the immutable release tag is:
 
 ```text
-ghcr.io/OWNER/talos-asahi/installer:v1.13.9-asahi.1
+ghcr.io/OWNER/talos-asahi/installer:v1.13.9-asahi.2
 ```
 
 After the first ESP-based installation is working, upgrade a node with:
@@ -39,13 +43,22 @@ After the first ESP-based installation is working, upgrade a node with:
 NODE_IP=192.0.2.10
 talosctl upgrade \
   --nodes "${NODE_IP}" \
-  --image ghcr.io/OWNER/talos-asahi/installer:v1.13.9-asahi.1 \
+  --image ghcr.io/OWNER/talos-asahi/installer:v1.13.9-asahi.2 \
   --reboot-mode=powercycle
 ```
 
 `powercycle` avoids relying on kexec while the boot path is still experimental.
-If Omni has the machine locked against changes, temporarily unlock it for the
-custom upgrade and lock it again after the node returns healthy.
+The repository restriction is intentional: granting `os:operator` an
+unrestricted upgrade API would let that role install an arbitrary operating
+system image. An `os:admin` client remains unrestricted, matching upstream
+Talos behavior. `talosctl` resolves the release tag during its image-pull step
+and sends the resulting immutable digest to the upgrade API.
+Forks must change `operatorUpgradeImageRepository` in the Talos patch to their
+own GHCR repository before relying on operator-driven upgrades.
+
+An existing node without this authorization patch cannot install the first
+patched release through the Omni tunnel. Install the release UKI and
+`loader.conf` on the ESP once; subsequent releases can use the command above.
 
 ## ESP contract
 
@@ -77,7 +90,7 @@ rollback from every early-boot failure.
 
 `Validate patches` runs for pull requests and pushes to `main`. It verifies all
 three source pins, applies every patch with `git apply --check`, and runs the
-focused Talos sd-boot unit tests.
+focused Talos lifecycle authorization and sd-boot unit tests.
 
 `Build and publish Asahi Talos` runs manually or when a matching release tag is
 pushed. It uses GitHub's native ARM64 runner, builds the kernel and Talos
@@ -95,7 +108,7 @@ remain available as short-lived Actions artifacts.
 
 For a release, update `versions.env`, make sure the patches still apply, bump
 `BUILD_REVISION` when appropriate, and push the exact computed tag. For the
-current pins that tag is `v1.13.9-asahi.1`.
+current pins that tag is `v1.13.9-asahi.2`.
 
 ## Local validation and build
 
