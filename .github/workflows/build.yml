@@ -18,7 +18,7 @@ on:
       - 'v*-asahi.*'
 
 permissions:
-  contents: read
+  contents: write
   packages: write
 
 concurrency:
@@ -88,16 +88,34 @@ jobs:
           PUBLISH_LATEST: ${{ github.event_name == 'push' || inputs.publish_latest }}
         run: ./scripts/publish.sh
 
+      - name: Publish GitHub release assets
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${RELEASE_TAG}" \
+            --verify-tag \
+            --title "Talos Asahi ${RELEASE_TAG}" \
+            --generate-notes \
+            _out/BOOTAA64.EFI \
+            _out/Talos-*.efi \
+            _out/loader.conf \
+            _out/talos-asahi-*-boot.tar.gz \
+            _out/installer-arm64.tar \
+            _out/SHA256SUMS \
+            _out/build.env
+
       - name: Upload boot bundle and installer archive
         uses: actions/upload-artifact@v4
         with:
           name: talos-asahi-${{ env.RELEASE_TAG }}
           path: |
-            dist/BOOTAA64.EFI
-            dist/Talos-*.efi
-            dist/loader.conf
-            dist/installer-arm64.tar
-            dist/SHA256SUMS
-            dist/build.env
+            _out/BOOTAA64.EFI
+            _out/Talos-*.efi
+            _out/loader.conf
+            _out/talos-asahi-*-boot.tar.gz
+            _out/installer-arm64.tar
+            _out/SHA256SUMS
+            _out/build.env
           if-no-files-found: error
           retention-days: 30

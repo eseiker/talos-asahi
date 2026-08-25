@@ -53,12 +53,13 @@ The existing Asahi ESP must have GPT partition label `EFI`, because Talos finds
 the partition by that label. Keep the Apple GPT, iBootSystemContainer, macOS,
 RecoveryOS, and the existing Asahi boot chain intact.
 
-The initial boot bundle is installed into the existing Asahi ESP as follows:
+Download and extract the release boot bundle, then install its files into the
+existing Asahi ESP as follows:
 
 ```text
-EFI/BOOT/BOOTAA64.EFI       <- dist/BOOTAA64.EFI
-EFI/Linux/Talos-v1.13.9.efi <- dist/Talos-v1.13.9.efi
-loader/loader.conf          <- dist/loader.conf
+EFI/BOOT/BOOTAA64.EFI       <- BOOTAA64.EFI
+EFI/Linux/Talos-v1.13.9.efi <- Talos-v1.13.9.efi
+loader/loader.conf          <- loader.conf
 ```
 
 On upgrade, Talos keeps the currently booted UKI as fallback, writes the next
@@ -86,6 +87,11 @@ imager, verifies the final artifacts, and optionally publishes:
 ghcr.io/OWNER/talos-asahi/installer:<release>
 ghcr.io/OWNER/talos-asahi/kernel:<kernel-release>
 ```
+
+A matching Git tag also creates a GitHub Release containing the ESP boot
+bundle, individual EFI files, checksums, build metadata, and the installer tar.
+The repository itself does not track a binary output directory. Manual builds
+remain available as short-lived Actions artifacts.
 
 For a release, update `versions.env`, make sure the patches still apply, bump
 `BUILD_REVISION` when appropriate, and push the exact computed tag. For the

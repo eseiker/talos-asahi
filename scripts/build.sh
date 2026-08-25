@@ -8,7 +8,7 @@ source "${root}/scripts/lib.sh"
 load_versions
 
 LOCAL_REGISTRY="${LOCAL_REGISTRY:-localhost:5000}"
-OUT_DIR="${OUT_DIR:-${root}/dist}"
+OUT_DIR="${OUT_DIR:-${root}/_out}"
 PROGRESS="${PROGRESS:-plain}"
 make_cmd="$(make_command)"
 build_root="$(mktemp -d "${TMPDIR:-/tmp}/talos-asahi-build.XXXXXX")"
@@ -78,9 +78,19 @@ LOCAL_KERNEL_IMAGE=${kernel_image}
 LOCAL_IMAGER_IMAGE=${imager_image}
 EOF
 
+boot_bundle="talos-asahi-${RELEASE_TAG}-boot.tar.gz"
+tar -C "${OUT_DIR}" -czf "${OUT_DIR}/${boot_bundle}" \
+  BOOTAA64.EFI "Talos-${TALOS_VERSION}.efi" loader.conf build.env
+
 (
   cd "${OUT_DIR}"
-  write_sha256sums BOOTAA64.EFI "Talos-${TALOS_VERSION}.efi" installer-arm64.tar loader.conf >SHA256SUMS
+  write_sha256sums \
+    BOOTAA64.EFI \
+    "Talos-${TALOS_VERSION}.efi" \
+    installer-arm64.tar \
+    loader.conf \
+    build.env \
+    "${boot_bundle}" >SHA256SUMS
 )
 
 "${root}/scripts/verify-artifacts.sh" "${OUT_DIR}"

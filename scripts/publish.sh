@@ -8,7 +8,7 @@ source "${root}/scripts/lib.sh"
 load_versions
 
 TARGET_REPOSITORY="${TARGET_REPOSITORY:?set TARGET_REPOSITORY, for example ghcr.io/owner/talos-asahi}"
-OUT_DIR="${OUT_DIR:-${root}/dist}"
+OUT_DIR="${OUT_DIR:-${root}/_out}"
 PUBLISH_LATEST="${PUBLISH_LATEST:-false}"
 
 # The imager tar retains the base installer's original repository tag. Loading

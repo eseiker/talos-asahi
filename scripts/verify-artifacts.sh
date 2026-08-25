@@ -7,7 +7,8 @@ root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "${root}/scripts/lib.sh"
 load_versions
 
-out_dir="${1:-${root}/dist}"
+out_dir="${1:-${root}/_out}"
+boot_bundle="talos-asahi-${RELEASE_TAG}-boot.tar.gz"
 required=(
   BOOTAA64.EFI
   "Talos-${TALOS_VERSION}.efi"
@@ -15,6 +16,7 @@ required=(
   loader.conf
   SHA256SUMS
   build.env
+  "${boot_bundle}"
 )
 
 for file in "${required[@]}"; do

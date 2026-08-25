@@ -1,4 +1,3 @@
-/dist/*
-!/dist/.gitkeep
+/_out/
 /.work/
 *.log
