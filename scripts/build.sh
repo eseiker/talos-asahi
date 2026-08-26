@@ -23,6 +23,7 @@ mkdir -p "${OUT_DIR}"
 
 kernel_image="${LOCAL_REGISTRY}/talos-asahi/kernel:${ASAHI_KERNEL_VERSION}-asahi.${BUILD_REVISION}"
 imager_image="local/talos-asahi/imager:${RELEASE_TAG}"
+boot_uki="Talos-${TALOS_VERSION}~${BUILD_REVISION}.efi"
 
 printf 'building Asahi kernel image %s\n' "${kernel_image}"
 "${make_cmd}" -C "${build_root}/pkgs" target-kernel \
@@ -58,15 +59,15 @@ docker run --rm \
   --entrypoint /usr/bin/unzstd \
   -v "${OUT_DIR}:/out" \
   "${imager_image}" \
-  -f /out/metal-arm64-uki.efi.zst -o "/out/Talos-${TALOS_VERSION}.efi"
+  -f /out/metal-arm64-uki.efi.zst -o "/out/${boot_uki}"
 rm -f "${OUT_DIR}/metal-arm64-uki.efi.zst"
 
 container_id="$(docker create "${imager_image}")"
 docker cp "${container_id}:/usr/install/arm64/systemd-boot.efi" "${OUT_DIR}/BOOTAA64.EFI"
 docker rm "${container_id}" >/dev/null
 
-printf '# systemd-boot configuration\n\ndefault Talos-%s*\ntimeout 5\neditor no\n' \
-  "${TALOS_VERSION}" >"${OUT_DIR}/loader.conf"
+printf '# systemd-boot configuration\n\ndefault %s*\ntimeout 5\neditor no\n' \
+  "${boot_uki%.efi}" >"${OUT_DIR}/loader.conf"
 
 cat >"${OUT_DIR}/build.env" <<EOF
 TALOS_VERSION=${TALOS_VERSION}
@@ -74,19 +75,20 @@ TALOS_SHA=${TALOS_SHA}
 ASAHI_KERNEL_VERSION=${ASAHI_KERNEL_VERSION}
 ASAHI_KERNEL_SHA=${ASAHI_KERNEL_SHA}
 RELEASE_TAG=${RELEASE_TAG}
+BOOT_UKI=${boot_uki}
 LOCAL_KERNEL_IMAGE=${kernel_image}
 LOCAL_IMAGER_IMAGE=${imager_image}
 EOF
 
 boot_bundle="talos-asahi-${RELEASE_TAG}-boot.tar.gz"
 tar -C "${OUT_DIR}" -czf "${OUT_DIR}/${boot_bundle}" \
-  BOOTAA64.EFI "Talos-${TALOS_VERSION}.efi" loader.conf build.env
+  BOOTAA64.EFI "${boot_uki}" loader.conf build.env
 
 (
   cd "${OUT_DIR}"
   write_sha256sums \
     BOOTAA64.EFI \
-    "Talos-${TALOS_VERSION}.efi" \
+    "${boot_uki}" \
     installer-arm64.tar \
     loader.conf \
     build.env \

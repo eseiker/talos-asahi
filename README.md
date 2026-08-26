@@ -20,10 +20,9 @@ worker. This is not an upstream-supported Talos platform.
 - Makes sd-boot updates use `loader/loader.conf` as the authoritative default.
   EFI variable reads, writes, and boot-entry creation become best effort, which
   is necessary for the Asahi U-Boot environment used in testing.
-- Allows Omni's `os:operator` role to call the streaming upgrade API only for
-  digest-pinned installer images in `ghcr.io/eseiker/talos-asahi/installer`.
-  Upstream Talos normally requires `os:admin`, while Omni deliberately exposes
-  only `os:operator` for ordinary managed-node access.
+- Allows Omni's `os:operator` role to call the streaming upgrade API. Upstream
+  Talos normally requires `os:admin`, while Omni deliberately exposes only
+  `os:operator` for ordinary managed-node access.
 
 The generated installer does not contain an Omni join token, a machine config,
 or a static `ip=` argument. Existing Talos machine configuration remains in the
@@ -48,13 +47,11 @@ talosctl upgrade \
 ```
 
 `powercycle` avoids relying on kexec while the boot path is still experimental.
-The repository restriction is intentional: granting `os:operator` an
-unrestricted upgrade API would let that role install an arbitrary operating
-system image. An `os:admin` client remains unrestricted, matching upstream
-Talos behavior. `talosctl` resolves the release tag during its image-pull step
-and sends the resulting immutable digest to the upgrade API.
-Forks must change `operatorUpgradeImageRepository` in the Talos patch to their
-own GHCR repository before relying on operator-driven upgrades.
+For unattended use, replace the mutable tag with the published
+`@sha256:<digest>` reference. This build deliberately grants `os:operator` an
+unrestricted upgrade API, so that role can install any installer image. It is
+intended for a single-administrator cluster; do not use this authorization
+change where untrusted users or service accounts have Omni Operator access.
 
 An existing node without this authorization patch cannot install the first
 patched release through the Omni tunnel. Install the release UKI and
@@ -71,9 +68,14 @@ existing Asahi ESP as follows:
 
 ```text
 EFI/BOOT/BOOTAA64.EFI       <- BOOTAA64.EFI
-EFI/Linux/Talos-v1.13.9.efi <- Talos-v1.13.9.efi
+EFI/Linux/Talos-v1.13.9~2.efi <- Talos-v1.13.9~2.efi
 loader/loader.conf          <- loader.conf
 ```
+
+The `~BUILD_REVISION` suffix keeps an existing UKI with the same upstream
+Talos version intact during a manual ESP transition. Use the `loader.conf`
+shipped in the same release; its exact default pattern selects the new file
+without accidentally matching the older UKI.
 
 On upgrade, Talos keeps the currently booted UKI as fallback, writes the next
 UKI, and changes `loader.conf` to select it. The patch also teaches Talos probe
@@ -89,8 +91,8 @@ rollback from every early-boot failure.
 ## CI operation
 
 `Validate patches` runs for pull requests and pushes to `main`. It verifies all
-three source pins, applies every patch with `git apply --check`, and runs the
-focused Talos lifecycle authorization and sd-boot unit tests.
+three source pins, applies every patch with `git apply --check`, compile-checks
+the lifecycle package, and runs the focused sd-boot unit tests.
 
 `Build and publish Asahi Talos` runs manually or when a matching release tag is
 pushed. It uses GitHub's native ARM64 runner, builds the kernel and Talos
