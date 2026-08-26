@@ -63,6 +63,39 @@ The existing Asahi ESP must have GPT partition label `EFI`, because Talos finds
 the partition by that label. Keep the Apple GPT, iBootSystemContainer, macOS,
 RecoveryOS, and the existing Asahi boot chain intact.
 
+A completed installation also needs a separate Talos `META` partition on the
+same internal disk. Copying the boot bundle to the ESP does not create it. If
+the normal installer is not allowed to repartition the shared Apple disk,
+create it in free space before the first install with this exact contract:
+
+- GPT partition name/PARTLABEL: `META` (uppercase)
+- GPT partition type: Linux filesystem data
+  (`0FC63DAF-8483-4772-8E79-3D69D8477DE4`)
+- Size: exactly 1 MiB
+- Contents: raw and initially zero-filled; do not create a filesystem
+
+Talos locates this partition by the GPT PARTLABEL, not by a filesystem label or
+a directory named `META` on the ESP. It stores raw metadata and upgrade state
+there. `STATE` and `EPHEMERAL` remain separate Talos partitions. A conceptual
+shared-disk layout is:
+
+```text
+[Apple/macOS partitions] [Asahi ESP: EFI] [META: 1 MiB] [Talos data/free space] [RecoveryOS]
+```
+
+Do not copy LBAs from another Mac. Choose an actually free, 1 MiB-aligned
+extent on the target disk, and verify the resulting GPT names before booting:
+
+```sh
+sudo gpt -r show -l /dev/disk0
+```
+
+The output must show separate GPT entries named `EFI` and `META`. macOS may
+display the latter generically as `Linux Filesystem`; the GPT name is the field
+that matters. Some macOS Recovery configurations reject GPT label changes, so
+perform the operation from an environment that has exclusive write access to
+the disk rather than weakening macOS security protections.
+
 Download and extract the release boot bundle, then install its files into the
 existing Asahi ESP as follows:
 
