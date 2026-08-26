@@ -3,7 +3,8 @@
 This repository builds an experimental, reproducible Talos Linux installer for
 Apple Silicon Macs that already boot through Asahi's m1n1 and U-Boot chain. It
 publishes an ARM64 installer to GHCR and produces an ESP boot bundle containing
-systemd-boot, a generic Talos UKI, and `loader.conf`.
+systemd-boot, a one-time preparation UKI, a generic Talos UKI, and
+`loader.conf`.
 
 The first hardware-tested pin is Talos v1.13.9 with the Asahi 7.1.9 downstream
 kernel. It booted a Mac14,13 and joined an existing Kubernetes cluster as a
@@ -31,6 +32,162 @@ The generated installer does not contain an Omni join token, a machine config,
 or a static `ip=` argument. Existing Talos machine configuration remains in the
 STATE partition during a normal upgrade.
 
+## How to install
+
+This procedure preserves the existing Apple GPT, macOS, Asahi stub, and
+RecoveryOS partitions. It is nevertheless an experimental installer which
+writes the internal disk's GPT. Make a current backup before starting.
+
+### 1. Download the ESP bundle
+
+Download the ZIP for the desired kernel flavor from the matching GitHub
+Release:
+
+```text
+talos-asahi-v1.13.9-asahi.4-esp.zip
+talos-asahi-v1.13.9-asahi.4-mainline-esp.zip
+```
+
+The Asahi flavor is the default. The mainline flavor is experimental and has a
+smaller set of working Apple drivers. Verify the ZIP against the release's
+`SHA256SUMS` before copying it to the internal disk.
+
+The archive has no enclosing top-level directory. Extracting it at the root of
+an ESP produces exactly this overlay:
+
+```text
+EFI/BOOT/BOOTAA64.EFI
+EFI/Linux/Talos-prepare.efi
+EFI/Linux/Talos-v1.13.9.efi
+loader/loader.conf
+```
+
+The mainline bundle names its final UKI
+`EFI/Linux/Talos-v1.13.9-mainline.efi`. Neither bundle contains or replaces
+Asahi's `m1n1/boot.bin`.
+
+### 2. Install the official Asahi UEFI environment
+
+Run the [official Asahi installer](https://github.com/AsahiLinux/asahi-installer)
+from macOS and choose `UEFI environment only (m1n1 + U-Boot + ESP)`. Allocate
+the space intended for Talos. The Asahi UEFI profile creates its 500 MB ESP and
+leaves the remaining selected space unallocated.
+
+At the final `Press enter to shut down the system` prompt, do **not** press
+Enter yet. Keep that terminal open and use a second macOS terminal to copy the
+release overlay. The installer prints the new EFI PARTUUID; use that value
+below:
+
+```sh
+BUNDLE="$HOME/Downloads/talos-asahi-v1.13.9-asahi.4-esp.zip"
+ESP_PARTUUID="replace-with-the-EFI-PARTUUID-shown-by-the-installer"
+
+diskutil mount "${ESP_PARTUUID}"
+ESP_MOUNT="$(diskutil info "${ESP_PARTUUID}" | sed -n 's/^ *Mount Point: *//p')"
+test -n "${ESP_MOUNT}"
+
+sudo ditto -x -k "${BUNDLE}" "${ESP_MOUNT}"
+
+test -s "${ESP_MOUNT}/m1n1/boot.bin"
+test -s "${ESP_MOUNT}/EFI/BOOT/BOOTAA64.EFI"
+test -s "${ESP_MOUNT}/EFI/Linux/Talos-prepare.efi"
+test -s "${ESP_MOUNT}/loader/loader.conf"
+
+sync
+diskutil unmount "${ESP_PARTUUID}"
+```
+
+Return to the Asahi installer terminal, press Enter, and follow its power-off
+and One True RecoveryOS (1TR) stage 2 instructions exactly. In particular,
+start the fully powered-off Mac by holding the power button until startup
+options appear.
+
+### 3. Let the preparation UKI create META
+
+The first UEFI boot selects `Talos-prepare.efi`. It identifies the correct ESP
+from Asahi's device-tree PARTUUID, verifies that it is on NVMe, and performs the
+following one-time transaction:
+
+1. Create an aligned, exactly 1 MiB Linux GPT partition in the free extent
+   immediately after the ESP, initially named `TALOS_META_PENDING`.
+2. Zero-fill and verify the whole new partition.
+3. Rename the ESP to `EFI` and the new partition to `META`.
+4. Change `loader.conf` to select the final Talos UKI.
+5. Delete `EFI/Linux/Talos-prepare.efi`, flush the ESP, and reboot.
+
+An interrupted run resumes from `TALOS_META_PENDING`. An existing valid
+`META` is preserved and is never zero-filled again. Any unexpected partition,
+size, type, or placement stops preparation without deleting the prepare UKI or
+switching the boot target. Do not proceed to `apply-config` after such an
+error.
+
+### 4. Set the machine UUID before applying configuration
+
+The tested Asahi U-Boot environment exposes an all-zero SMBIOS machine UUID.
+After the automatic reboot reaches Talos maintenance mode, generate one stable
+UUID and store it in META key `UUIDOverride` (`0x0f`):
+
+```sh
+NODE=192.0.2.10
+MACHINE_UUID="$(uuidgen | tr '[:upper:]' '[:lower:]')"
+
+talosctl \
+  --nodes "${NODE}" \
+  --endpoints "${NODE}" \
+  --insecure \
+  meta write 0x0f "${MACHINE_UUID}"
+
+talosctl \
+  --nodes "${NODE}" \
+  --endpoints "${NODE}" \
+  --insecure \
+  reboot
+```
+
+Wait for the maintenance API to return, then verify both the stored key and
+the reported system UUID before enrolling the machine in Omni or applying its
+machine configuration:
+
+```sh
+talosctl --nodes "${NODE}" --endpoints "${NODE}" --insecure \
+  get metakeys 0x0f -o yaml
+talosctl --nodes "${NODE}" --endpoints "${NODE}" --insecure \
+  get systeminformation -o yaml
+```
+
+Do not generate another value on a retry or reinstall when key `0x0f` already
+exists. Preserve the same UUID if META ever has to be recovered; changing it
+creates a different machine identity in Omni.
+
+### 5. Apply a non-wiping Talos configuration
+
+The machine configuration must select the internal NVMe explicitly, use this
+repository's installer image, and disable whole-disk wiping:
+
+```yaml
+machine:
+  install:
+    disk: /dev/nvme0n1
+    image: ghcr.io/OWNER/talos-asahi/installer:v1.13.9-asahi.4
+    wipe: false
+```
+
+Confirm the actual NVMe device name on the target rather than copying the
+example blindly, then apply the complete generated machine configuration in
+maintenance mode:
+
+```sh
+talosctl apply-config \
+  --nodes "${NODE}" \
+  --endpoints "${NODE}" \
+  --insecure \
+  --file worker.yaml
+```
+
+Talos reuses `EFI` and `META` and creates `STATE` and `EPHEMERAL` in the
+remaining free space. Never write a generic Talos raw disk image to the whole
+internal NVMe.
+
 ## Published image
 
 For a repository named `OWNER/talos-asahi`, the immutable release tag is:
@@ -57,8 +214,8 @@ intended for a single-administrator cluster; do not use this authorization
 change where untrusted users or service accounts have Omni Operator access.
 
 An existing node without this authorization patch cannot install the first
-patched release through the Omni tunnel. Install the release UKI and
-`loader.conf` on the ESP once; subsequent releases can use the command above.
+patched release through the Omni tunnel. Install the release ESP ZIP once;
+subsequent releases can use the command above.
 
 ## ESP contract
 
@@ -67,9 +224,8 @@ the partition by that label. Keep the Apple GPT, iBootSystemContainer, macOS,
 RecoveryOS, and the existing Asahi boot chain intact.
 
 A completed installation also needs a separate Talos `META` partition on the
-same internal disk. Copying the boot bundle to the ESP does not create it. If
-the normal installer is not allowed to repartition the shared Apple disk,
-create it in free space before the first install with this exact contract:
+same internal disk. The release's one-time preparation UKI creates it with
+this exact contract:
 
 - GPT partition name/PARTLABEL: `META` (uppercase)
 - GPT partition type: Linux filesystem data
@@ -86,8 +242,10 @@ shared-disk layout is:
 [Apple/macOS partitions] [Asahi ESP: EFI] [META: 1 MiB] [Talos data/free space] [RecoveryOS]
 ```
 
-Do not copy LBAs from another Mac. Choose an actually free, 1 MiB-aligned
-extent on the target disk, and verify the resulting GPT names before booting:
+Do not copy LBAs from another Mac or create META manually for a new
+installation. The preparation UKI derives the correct disk from the Asahi ESP
+PARTUUID and refuses an occupied or ambiguous post-ESP extent. After it
+finishes, the resulting GPT names can be inspected from macOS with:
 
 ```sh
 sudo gpt -r show -l /dev/disk0
@@ -95,60 +253,15 @@ sudo gpt -r show -l /dev/disk0
 
 The output must show separate GPT entries named `EFI` and `META`. macOS may
 display the latter generically as `Linux Filesystem`; the GPT name is the field
-that matters. Some macOS Recovery configurations reject GPT label changes, so
-perform the operation from an environment that has exclusive write access to
-the disk rather than weakening macOS security protections.
+that matters. META remains an unformatted raw partition. Its machine UUID
+override is unrelated to the GPT disk GUID, META PARTUUID, or a filesystem
+UUID.
 
-### Machine UUID override for Omni
-
-The tested Asahi U-Boot environment exposes the SMBIOS machine UUID as
-`00000000-0000-0000-0000-000000000000`. Talos and Omni require a stable,
-non-zero machine identity. After Talos discovers the META partition and before
-enrolling the machine in Omni, generate a UUID once and store it in the Talos
-META `UUIDOverride` key (`0x0f`):
-
-```sh
-NODE=192.0.2.10
-MACHINE_UUID="$(uuidgen | tr '[:upper:]' '[:lower:]')"
-
-talosctl \
-  --nodes "${NODE}" \
-  --endpoints "${NODE}" \
-  --insecure \
-  meta write 0x0f "${MACHINE_UUID}"
-```
-
-`--insecure` is for maintenance mode over the local network. On an already
-authenticated node, omit `--endpoints` and `--insecure`. Reboot after writing
-the key, then verify that both the META key and reported system UUID contain
-the generated value:
-
-```sh
-talosctl --nodes "${NODE}" get metakeys 0x0f -o yaml
-talosctl --nodes "${NODE}" get systeminformation -o yaml
-```
-
-Do not generate a new value on every boot or upgrade. META preserves this value
-across normal upgrades. If META must be recreated and the existing Omni machine
-identity should be retained, restore the same UUID; a new UUID represents a new
-machine to Omni. This machine UUID is unrelated to the GPT disk GUID, the META
-partition PARTUUID, or a filesystem UUID. META remains an unformatted raw
-partition.
-
-Download and extract the release boot bundle, then install its files into the
-existing Asahi ESP as follows:
-
-```text
-EFI/BOOT/BOOTAA64.efi       <- BOOTAA64.efi
-EFI/Linux/Talos-v1.13.9.efi <- Talos-v1.13.9.efi
-loader/loader.conf          <- loader.conf
-```
-
-The release bundle uses a stable bootstrap UKI name rather than encoding the
-downstream build revision in the ESP filename. The mainline bundle uses
-`Talos-v1.13.9-mainline.efi` so both kernel flavors remain distinguishable.
-Use the `loader.conf` shipped in the same bundle; it selects that filename
-exactly.
+The ZIP uses a stable final UKI name rather than encoding the downstream build
+revision in the ESP filename. Its initial `loader.conf` selects
+`Talos-prepare.efi`; preparation rewrites it to the exact final filename. The
+mainline bundle uses `Talos-v1.13.9-mainline.efi` so both kernel flavors remain
+distinguishable.
 
 On upgrade, Talos keeps the currently booted UKI as fallback, writes the next
 same-version UKI as `Talos-v1.13.9~N.efi`, and changes `loader.conf` to select
@@ -172,7 +285,8 @@ rollback from every early-boot failure.
 
 `Validate patches` runs for pull requests and pushes to `main`. It verifies all
 three source pins, applies every patch with `git apply --check`, compile-checks
-the lifecycle package, and runs the focused sd-boot unit tests.
+the lifecycle package, runs the focused sd-boot unit tests, and exercises the
+prepare GPT transaction against disposable disk images.
 
 `Build and publish Asahi Talos` runs manually or when a matching release tag is
 pushed. Manual runs build the selected kernel flavor. A matching release tag
@@ -202,7 +316,7 @@ and is also built alongside Asahi for every matching release tag. It keeps the
 Talos pkgs pin on upstream Linux 6.18.44, enables the Apple SoC drivers
 available there, and builds a separate 16 KiB-page UKI and installer. Mainline
 outputs carry a `-mainline` suffix. A tag build publishes its installer and
-kernel images and adds its boot bundle to the GitHub Release; a manual build
+kernel images and adds its ESP ZIP to the GitHub Release; a manual build
 publishes them only when `publish` is selected. Its build cache is isolated in
 GHCR at
 `build-cache:kernel-arm64-mainline`.
@@ -213,10 +327,10 @@ RTC, CPU idle, and suspend are not expected to work with Linux 6.18 on this
 machine. Keep the known-good downstream Asahi UKI on the ESP while testing.
 
 A matching Git tag also creates one GitHub Release after both builds succeed.
-It contains separate Asahi and mainline ESP boot bundles plus one combined
-checksum file. Each bundle contains systemd-boot, its UKI, and the matching
-`loader.conf`; individual files are not published because the bundle is the
-atomic unit that keeps the bootloader, UKI, and matching default together. The
+It contains separate Asahi and mainline ESP ZIPs plus one combined checksum
+file. Each ZIP contains systemd-boot, a matching one-time prepare UKI, the
+final Talos UKI, and `loader.conf` in their ESP-relative paths. Individual
+files are not published because the ZIP is the atomic installation overlay. The
 installer OCI archives and `build.env` metadata remain available only in the
 short-lived Actions artifacts. The repository itself does not track a binary
 output directory.
@@ -238,7 +352,8 @@ current pins that tag is `v1.13.9-asahi.4`.
 
 ## Local validation and build
 
-Patch validation only needs Git and Docker:
+Patch validation only needs Git and Docker. It also builds the small prepare
+rootfs and tests its GPT transaction against disposable disk images:
 
 ```sh
 ./scripts/validate.sh

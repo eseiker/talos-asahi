@@ -122,7 +122,7 @@ jobs:
         with:
           name: talos-asahi-${{ env.ARTIFACT_TAG }}
           path: |
-            _out/talos-asahi-*-boot.tar.gz
+            _out/talos-asahi-*-esp.zip
             _out/installer-arm64.tar
             _out/SHA256SUMS
             _out/build.env
@@ -145,8 +145,8 @@ jobs:
       - name: Prepare release assets
         shell: bash
         run: |
-          asahi_bundle="_release-input/talos-asahi-${GITHUB_REF_NAME}/talos-asahi-${GITHUB_REF_NAME}-boot.tar.gz"
-          mainline_bundle="_release-input/talos-asahi-${GITHUB_REF_NAME}-mainline/talos-asahi-${GITHUB_REF_NAME}-mainline-boot.tar.gz"
+          asahi_bundle="_release-input/talos-asahi-${GITHUB_REF_NAME}/talos-asahi-${GITHUB_REF_NAME}-esp.zip"
+          mainline_bundle="_release-input/talos-asahi-${GITHUB_REF_NAME}-mainline/talos-asahi-${GITHUB_REF_NAME}-mainline-esp.zip"
 
           for bundle in "${asahi_bundle}" "${mainline_bundle}"; do
             if [[ ! -f "${bundle}" ]]; then
@@ -159,7 +159,7 @@ jobs:
           cp "${asahi_bundle}" "${mainline_bundle}" _release/
           (
             cd _release
-            sha256sum talos-asahi-*-boot.tar.gz >SHA256SUMS
+            sha256sum talos-asahi-*-esp.zip >SHA256SUMS
           )
 
       - name: Publish GitHub release assets
@@ -171,5 +171,5 @@ jobs:
             --verify-tag \
             --title "Talos Asahi ${GITHUB_REF_NAME}" \
             --generate-notes \
-            _release/talos-asahi-*-boot.tar.gz \
+            _release/talos-asahi-*-esp.zip \
             _release/SHA256SUMS

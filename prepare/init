@@ -1,0 +1,109 @@
+#!/bin/sh
+
+set -eu
+
+export PATH=/usr/sbin:/usr/bin:/sbin:/bin
+
+log() {
+  printf '[talos-asahi-prepare] %s\n' "$*"
+}
+
+emergency() {
+  log "ERROR: $*"
+  log 'The ESP and Talos prepare UKI were left in place. Reboot to retry.'
+  exec sh
+}
+
+mkdir -p /dev /proc /sys /run /esp
+mount -t devtmpfs devtmpfs /dev 2>/dev/null || true
+exec </dev/console >/dev/console 2>&1
+mount -t proc proc /proc || emergency 'unable to mount procfs'
+mount -t sysfs sysfs /sys || emergency 'unable to mount sysfs'
+mount -t tmpfs tmpfs /run || emergency 'unable to mount tmpfs'
+
+log 'starting one-time Talos ESP and META preparation'
+
+target_uki=''
+# Kernel arguments are deliberately parsed as whitespace-separated words.
+# shellcheck disable=SC2013
+for argument in $(cat /proc/cmdline); do
+  case "$argument" in
+    talos_asahi.target=*) target_uki="${argument#talos_asahi.target=}" ;;
+  esac
+done
+case "$target_uki" in
+  Talos-*.efi) ;;
+  *) emergency 'missing or invalid talos_asahi.target kernel argument' ;;
+esac
+case "$target_uki" in
+  */*|*..*) emergency 'unsafe target UKI filename' ;;
+esac
+
+esp_uuid_path=/sys/firmware/devicetree/base/chosen/asahi,efi-system-partition
+[ -r "$esp_uuid_path" ] || emergency 'Asahi ESP UUID is missing from the device tree'
+esp_uuid="$(tr -d '\000' <"$esp_uuid_path" | tr '[:upper:]' '[:lower:]')"
+[ -n "$esp_uuid" ] || emergency 'Asahi ESP UUID in the device tree is empty'
+
+esp_device=''
+attempt=0
+while [ "$attempt" -lt 30 ] && [ -z "$esp_device" ]; do
+  for uevent in /sys/class/block/*/uevent; do
+    [ -r "$uevent" ] || continue
+    partuuid="$(sed -n 's/^PARTUUID=//p' "$uevent" | tr '[:upper:]' '[:lower:]')"
+    if [ "$partuuid" = "$esp_uuid" ]; then
+      esp_device="/dev/$(basename "$(dirname "$uevent")")"
+      break
+    fi
+  done
+  [ -n "$esp_device" ] || sleep 1
+  attempt=$((attempt + 1))
+done
+[ -n "$esp_device" ] || emergency "unable to find Asahi ESP PARTUUID $esp_uuid"
+
+esp_name="${esp_device#/dev/}"
+[ -r "/sys/class/block/$esp_name/partition" ] || emergency "$esp_device is not a partition"
+esp_number="$(cat "/sys/class/block/$esp_name/partition")"
+esp_sysfs="$(readlink -f "/sys/class/block/$esp_name")"
+disk_name="$(basename "$(dirname "$esp_sysfs")")"
+case "$disk_name" in
+  nvme*n*) ;;
+  *) emergency "Asahi ESP is not on an NVMe disk: $disk_name" ;;
+esac
+disk_device="/dev/$disk_name"
+sector_size_path="/sys/class/block/$disk_name/queue/logical_block_size"
+[ -r "$sector_size_path" ] || emergency 'unable to read the NVMe logical sector size'
+sector_size="$(cat "$sector_size_path")"
+
+log "Asahi ESP is $esp_device on $disk_device"
+if ! /usr/libexec/talos-asahi/prepare-gpt "$disk_device" "$esp_number" "$sector_size"; then
+  emergency 'GPT preparation failed'
+fi
+
+mount -t vfat -o rw "$esp_device" /esp || emergency 'unable to mount the Asahi ESP read-write'
+[ -s "/esp/EFI/Linux/$target_uki" ] || emergency "target UKI is missing: EFI/Linux/$target_uki"
+[ -s /esp/EFI/BOOT/BOOTAA64.EFI ] || emergency 'systemd-boot is missing: EFI/BOOT/BOOTAA64.EFI'
+
+mkdir -p /esp/loader
+loader_tmp=/esp/loader/loader.conf.prepare
+{
+  printf '# systemd-boot configuration\n\n'
+  printf 'default %s\n' "$target_uki"
+  printf 'timeout 5\n'
+  printf 'editor no\n'
+} >"$loader_tmp"
+sync
+mv -f "$loader_tmp" /esp/loader/loader.conf
+sync
+
+prepare_uki=/esp/EFI/Linux/Talos-prepare.efi
+[ -f "$prepare_uki" ] || emergency 'running prepare UKI is missing from the ESP'
+rm -f "$prepare_uki"
+sync
+[ ! -e "$prepare_uki" ] || emergency 'unable to remove the one-time prepare UKI'
+
+umount /esp || emergency 'unable to unmount the Asahi ESP'
+sync
+log "preparation complete; rebooting into $target_uki"
+sleep 2
+reboot -f
+emergency 'reboot failed'

@@ -24,6 +24,7 @@ mkdir -p "${OUT_DIR}"
 kernel_image="${LOCAL_REGISTRY}/talos-asahi/kernel:${KERNEL_IMAGE_TAG}"
 installer_base_image="${LOCAL_REGISTRY}/talos-asahi/installer-base:${ARTIFACT_TAG}"
 imager_image="local/talos-asahi/imager:${ARTIFACT_TAG}"
+prepare_tools_image="local/talos-asahi/prepare-tools:${ARTIFACT_TAG}"
 kernel_target_args=(
   "--tag=${kernel_image}"
   "--output=type=docker"
@@ -94,8 +95,21 @@ container_id="$(docker create "${imager_image}")"
 docker cp "${container_id}:/usr/install/arm64/systemd-boot.efi" "${OUT_DIR}/BOOTAA64.efi"
 docker rm "${container_id}" >/dev/null
 
-printf '# systemd-boot configuration\n\ndefault %s\ntimeout 5\neditor no\n' \
-  "${BOOT_UKI}" >"${OUT_DIR}/loader.conf"
+printf 'building one-time prepare UKI\n'
+docker buildx build --load \
+  --platform linux/arm64 \
+  --file "${root}/prepare/Dockerfile" \
+  --target tools \
+  --tag "${prepare_tools_image}" \
+  "${root}/prepare"
+docker run --rm \
+  --user "$(id -u):$(id -g)" \
+  -v "${OUT_DIR}:/out" \
+  "${prepare_tools_image}" \
+  "/out/${BOOT_UKI}" "/out/${PREPARE_UKI}" "${BOOT_UKI}"
+
+printf '# systemd-boot configuration\n\ndefault %s\ntimeout 0\neditor no\n' \
+  "${PREPARE_UKI}" >"${OUT_DIR}/loader.conf"
 
 cat >"${OUT_DIR}/build.env" <<EOF
 TALOS_VERSION=${TALOS_VERSION}
@@ -108,13 +122,29 @@ KERNEL_VERSION=${KERNEL_VERSION}
 RELEASE_TAG=${RELEASE_TAG}
 ARTIFACT_TAG=${ARTIFACT_TAG}
 BOOT_UKI=${BOOT_UKI}
+PREPARE_UKI=${PREPARE_UKI}
+BOOT_BUNDLE=${BOOT_BUNDLE}
 LOCAL_KERNEL_IMAGE=${kernel_image}
 LOCAL_INSTALLER_BASE_IMAGE=${installer_base_image}
 LOCAL_IMAGER_IMAGE=${imager_image}
 EOF
 
-tar -C "${OUT_DIR}" -czf "${OUT_DIR}/${BOOT_BUNDLE}" \
-  BOOTAA64.efi "${BOOT_UKI}" loader.conf
+bundle_root="${build_root}/esp"
+mkdir -p "${bundle_root}/EFI/BOOT" "${bundle_root}/EFI/Linux" "${bundle_root}/loader"
+cp "${OUT_DIR}/BOOTAA64.efi" "${bundle_root}/EFI/BOOT/BOOTAA64.EFI"
+cp "${OUT_DIR}/${PREPARE_UKI}" "${bundle_root}/EFI/Linux/${PREPARE_UKI}"
+cp "${OUT_DIR}/${BOOT_UKI}" "${bundle_root}/EFI/Linux/${BOOT_UKI}"
+cp "${OUT_DIR}/loader.conf" "${bundle_root}/loader/loader.conf"
+find "${bundle_root}" -exec touch -t 198001010000 {} +
+rm -f "${OUT_DIR}/${BOOT_BUNDLE}"
+docker run --rm \
+  --user "$(id -u):$(id -g)" \
+  --entrypoint /usr/bin/zip \
+  --workdir /bundle \
+  -v "${bundle_root}:/bundle:ro" \
+  -v "${OUT_DIR}:/out" \
+  "${prepare_tools_image}" \
+  -X -D -q -r "/out/${BOOT_BUNDLE}" EFI loader
 
 (
   cd "${OUT_DIR}"

@@ -13,6 +13,8 @@ cleanup() {
 }
 trap cleanup EXIT
 
+"${root}/scripts/test-prepare.sh"
+
 KERNEL_FLAVOR=asahi "${root}/scripts/prepare-sources.sh" "${validation_root}/asahi"
 KERNEL_FLAVOR=mainline "${root}/scripts/prepare-sources.sh" "${validation_root}/mainline"
 

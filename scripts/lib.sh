@@ -35,9 +35,10 @@ load_versions() {
       ;;
   esac
 
-  BOOT_BUNDLE="talos-asahi-${ARTIFACT_TAG}-boot.tar.gz"
+  PREPARE_UKI="Talos-prepare.efi"
+  BOOT_BUNDLE="talos-asahi-${ARTIFACT_TAG}-esp.zip"
   export RELEASE_TAG KERNEL_FLAVOR KERNEL_VERSION KERNEL_IMAGE_TAG
-  export ARTIFACT_TAG BOOT_UKI BOOT_BUNDLE
+  export ARTIFACT_TAG BOOT_UKI PREPARE_UKI BOOT_BUNDLE
 }
 
 make_command() {
