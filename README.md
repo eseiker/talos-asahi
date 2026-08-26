@@ -96,6 +96,42 @@ that matters. Some macOS Recovery configurations reject GPT label changes, so
 perform the operation from an environment that has exclusive write access to
 the disk rather than weakening macOS security protections.
 
+### Machine UUID override for Omni
+
+The tested Asahi U-Boot environment exposes the SMBIOS machine UUID as
+`00000000-0000-0000-0000-000000000000`. Talos and Omni require a stable,
+non-zero machine identity. After Talos discovers the META partition and before
+enrolling the machine in Omni, generate a UUID once and store it in the Talos
+META `UUIDOverride` key (`0x0f`):
+
+```sh
+NODE=192.0.2.10
+MACHINE_UUID="$(uuidgen | tr '[:upper:]' '[:lower:]')"
+
+talosctl \
+  --nodes "${NODE}" \
+  --endpoints "${NODE}" \
+  --insecure \
+  meta write 0x0f "${MACHINE_UUID}"
+```
+
+`--insecure` is for maintenance mode over the local network. On an already
+authenticated node, omit `--endpoints` and `--insecure`. Reboot after writing
+the key, then verify that both the META key and reported system UUID contain
+the generated value:
+
+```sh
+talosctl --nodes "${NODE}" get metakeys 0x0f -o yaml
+talosctl --nodes "${NODE}" get systeminformation -o yaml
+```
+
+Do not generate a new value on every boot or upgrade. META preserves this value
+across normal upgrades. If META must be recreated and the existing Omni machine
+identity should be retained, restore the same UUID; a new UUID represents a new
+machine to Omni. This machine UUID is unrelated to the GPT disk GUID, the META
+partition PARTUUID, or a filesystem UUID. META remains an unformatted raw
+partition.
+
 Download and extract the release boot bundle, then install its files into the
 existing Asahi ESP as follows:
 
