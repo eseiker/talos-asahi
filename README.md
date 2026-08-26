@@ -103,6 +103,11 @@ ghcr.io/OWNER/talos-asahi/installer:<release>
 ghcr.io/OWNER/talos-asahi/kernel:<kernel-release>
 ```
 
+CI imports and exports the kernel's full BuildKit layer cache through
+`ghcr.io/OWNER/talos-asahi/build-cache:kernel-arm64`. The cache is separate
+from release images and is reused across Talos-only patch revisions. Local
+builds do not use a remote cache unless `KERNEL_CACHE_IMAGE` is set explicitly.
+
 A matching Git tag also creates a GitHub Release containing the ESP boot
 bundle, individual EFI files, checksums, build metadata, and the installer tar.
 The repository itself does not track a binary output directory. Manual builds

@@ -69,10 +69,11 @@ jobs:
             exit 1
           fi
           echo "RELEASE_TAG=${release_tag}" >>"${GITHUB_ENV}"
-          echo "TARGET_REPOSITORY=ghcr.io/${GITHUB_REPOSITORY,,}" >>"${GITHUB_ENV}"
+          target_repository="ghcr.io/${GITHUB_REPOSITORY,,}"
+          echo "TARGET_REPOSITORY=${target_repository}" >>"${GITHUB_ENV}"
+          echo "KERNEL_CACHE_IMAGE=${target_repository}/build-cache:kernel-arm64" >>"${GITHUB_ENV}"
 
       - name: Log in to GHCR
-        if: github.event_name == 'push' || inputs.publish
         uses: docker/login-action@v3
         with:
           registry: ghcr.io

@@ -24,12 +24,23 @@ mkdir -p "${OUT_DIR}"
 kernel_image="${LOCAL_REGISTRY}/talos-asahi/kernel:${ASAHI_KERNEL_VERSION}-asahi.${BUILD_REVISION}"
 imager_image="local/talos-asahi/imager:${RELEASE_TAG}"
 boot_uki="Talos-${TALOS_VERSION}~${BUILD_REVISION}.efi"
+kernel_target_args=(
+  "--tag=${kernel_image}"
+  "--output=type=docker"
+)
+
+if [[ -n "${KERNEL_CACHE_IMAGE:-}" ]]; then
+  kernel_target_args+=(
+    "--cache-from=type=registry,ref=${KERNEL_CACHE_IMAGE}"
+    "--cache-to=type=registry,ref=${KERNEL_CACHE_IMAGE},mode=max,oci-mediatypes=true,image-manifest=true,ignore-error=true"
+  )
+fi
 
 printf 'building Asahi kernel image %s\n' "${kernel_image}"
 "${make_cmd}" -C "${build_root}/pkgs" target-kernel \
   PLATFORM=linux/arm64 \
   PROGRESS="${PROGRESS}" \
-  TARGET_ARGS="--tag=${kernel_image} --output=type=docker"
+  TARGET_ARGS="${kernel_target_args[*]}"
 docker push "${kernel_image}"
 
 printf 'building patched Talos imager %s\n' "${imager_image}"
