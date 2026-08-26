@@ -20,11 +20,12 @@ if [[ "${KERNEL_FLAVOR}" != "asahi" ]]; then
   exit 1
 fi
 
-# The imager tar retains the base installer's original repository tag. Loading
+# The imager tar retains the patched base installer's repository tag. Loading
 # it is intentional here: the newly loaded image includes our custom UKI and
-# installer binary, and is immediately retagged into the requested repository.
+# patched installer binary, and is immediately retagged into the requested
+# repository.
 docker load --input "${OUT_DIR}/installer-arm64.tar"
-loaded_installer="ghcr.io/siderolabs/installer-base:${TALOS_VERSION}"
+loaded_installer="${LOCAL_INSTALLER_BASE_IMAGE}"
 installer_ref="${TARGET_REPOSITORY}/installer:${RELEASE_TAG}"
 docker tag "${loaded_installer}" "${installer_ref}"
 docker push "${installer_ref}"

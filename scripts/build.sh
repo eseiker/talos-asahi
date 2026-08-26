@@ -22,6 +22,7 @@ mkdir -p "${OUT_DIR}"
 "${root}/scripts/prepare-sources.sh" "${build_root}"
 
 kernel_image="${LOCAL_REGISTRY}/talos-asahi/kernel:${KERNEL_IMAGE_TAG}"
+installer_base_image="${LOCAL_REGISTRY}/talos-asahi/installer-base:${ARTIFACT_TAG}"
 imager_image="local/talos-asahi/imager:${ARTIFACT_TAG}"
 kernel_target_args=(
   "--tag=${kernel_image}"
@@ -42,6 +43,18 @@ printf 'building %s kernel image %s\n' "${KERNEL_FLAVOR}" "${kernel_image}"
   TARGET_ARGS="${kernel_target_args[*]}"
 docker push "${kernel_image}"
 
+printf 'building patched Talos installer base %s\n' "${installer_base_image}"
+"${make_cmd}" -C "${build_root}/talos" target-installer-base \
+  PLATFORM=linux/arm64 \
+  PROGRESS="${PROGRESS}" \
+  TAG="${TALOS_VERSION}" \
+  ABBREV_TAG="${TALOS_VERSION}" \
+  SHA="${TALOS_SHA:0:8}" \
+  PKG_KERNEL="${kernel_image}" \
+  PKG_KERNEL_ARM64="${kernel_image}" \
+  TARGET_ARGS="--tag=${installer_base_image} --output=type=docker"
+docker push "${installer_base_image}"
+
 printf 'building patched Talos imager %s\n' "${imager_image}"
 "${make_cmd}" -C "${build_root}/talos" target-imager \
   PLATFORM=linux/arm64 \
@@ -57,7 +70,12 @@ printf 'generating generic installer and boot bundle\n'
 docker run --rm --network=host \
   --user "$(id -u):$(id -g)" \
   -v "${OUT_DIR}:/out" \
-  "${imager_image}" installer --arch arm64
+  "${imager_image}" installer --arch arm64 \
+  --base-installer-image "${installer_base_image}" \
+  --insecure
+
+"${root}/scripts/verify-installer-image.sh" \
+  "${OUT_DIR}/installer-arm64.tar" "${installer_base_image}"
 
 docker run --rm \
   --user "$(id -u):$(id -g)" \
@@ -91,6 +109,7 @@ RELEASE_TAG=${RELEASE_TAG}
 ARTIFACT_TAG=${ARTIFACT_TAG}
 BOOT_UKI=${BOOT_UKI}
 LOCAL_KERNEL_IMAGE=${kernel_image}
+LOCAL_INSTALLER_BASE_IMAGE=${installer_base_image}
 LOCAL_IMAGER_IMAGE=${imager_image}
 EOF
 

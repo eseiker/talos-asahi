@@ -20,6 +20,9 @@ worker. This is not an upstream-supported Talos platform.
 - Makes sd-boot updates use `loader/loader.conf` as the authoritative default.
   EFI variable reads, writes, and boot-entry creation become best effort, which
   is necessary for the Asahi U-Boot environment used in testing.
+- Builds `installer-base` from the same patched Talos source and uses it as the
+  published installer's base. CI inspects `/bin/installer` in the final OCI
+  archive and rejects an artifact without the sd-boot `loader.conf` fallback.
 - Allows Omni's `os:operator` role to call the streaming upgrade API. Upstream
   Talos normally requires `os:admin`, while Omni deliberately exposes only
   `os:operator` for ordinary managed-node access.
@@ -164,8 +167,9 @@ three source pins, applies every patch with `git apply --check`, compile-checks
 the lifecycle package, and runs the focused sd-boot unit tests.
 
 `Build and publish Asahi Talos` runs manually or when a matching release tag is
-pushed. It uses GitHub's native ARM64 runner, builds the kernel and Talos
-imager, verifies the final artifacts, and optionally publishes:
+pushed. It uses GitHub's native ARM64 runner, builds the kernel, patched Talos
+installer base, and Talos imager, verifies the final artifacts and installer
+binary, and optionally publishes:
 
 ```text
 ghcr.io/OWNER/talos-asahi/installer:<release>
