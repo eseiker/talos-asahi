@@ -14,8 +14,11 @@ worker. This is not an upstream-supported Talos platform.
 
 - Builds the Asahi kernel with Apple AIC, DART, PCIe, NVMe, SMC, and related
   platform drivers.
-- Uses 16 KiB pages because this Asahi kernel still requires them for Apple
-  PCIe. That is a known container-compatibility tradeoff.
+- Uses 16 KiB pages for the Asahi and default mainline flavors. The additional
+  `mainline-4k` flavor retains Talos' standard 4 KiB page size and relies on
+  Apple DART's forced identity-domain fallback where the hardware IOMMU
+  granule is 16 KiB. That improves container compatibility at the cost of DMA
+  isolation and remains experimental.
 - Reuses the already installed m1n1, U-Boot, Apple firmware, and Asahi ESP;
   there is no board overlay or platform installer in the update path.
 - Makes sd-boot updates use `loader/loader.conf` as the authoritative default.
@@ -46,11 +49,13 @@ Release:
 ```text
 talos-asahi-v1.13.9-asahi.4-esp.zip
 talos-asahi-v1.13.9-asahi.4-mainline-esp.zip
+talos-asahi-v1.13.9-asahi.4-mainline-4k-esp.zip
 ```
 
-The Asahi flavor is the default. The mainline flavor is experimental and has a
-smaller set of working Apple drivers. Verify the ZIP against the release's
-`SHA256SUMS` before copying it to the internal disk.
+The Asahi flavor is the default. Both mainline flavors are experimental and
+have a smaller set of working Apple drivers. `mainline` uses 16 KiB pages;
+`mainline-4k` uses 4 KiB pages with DART bypass where required. Verify the ZIP
+against the release's `SHA256SUMS` before copying it to the internal disk.
 
 The archive has no enclosing top-level directory. Extracting it at the root of
 an ESP produces exactly this overlay:
@@ -63,8 +68,9 @@ loader/loader.conf
 ```
 
 The mainline bundle names its final UKI
-`EFI/Linux/Talos-v1.13.9-mainline.efi`. Neither bundle contains or replaces
-Asahi's `m1n1/boot.bin`.
+`EFI/Linux/Talos-v1.13.9-mainline.efi`; the 4 KiB bundle uses
+`EFI/Linux/Talos-v1.13.9-mainline-4k.efi`. None of the bundles contains or
+replaces Asahi's `m1n1/boot.bin`.
 
 ### 2. Install the official Asahi UEFI environment
 
@@ -172,6 +178,11 @@ machine:
     wipe: false
 ```
 
+Keep the installer image flavor matched to the ESP bundle. Use
+`:v1.13.9-asahi.4-mainline` with the mainline 16K ZIP and
+`:v1.13.9-asahi.4-mainline-4k` with the mainline 4K ZIP. Mixing them causes
+the installer to replace the selected test UKI with a different kernel flavor.
+
 Confirm the actual NVMe device name on the target rather than copying the
 example blindly, then apply the complete generated machine configuration in
 maintenance mode:
@@ -260,8 +271,8 @@ UUID.
 The ZIP uses a stable final UKI name rather than encoding the downstream build
 revision in the ESP filename. Its initial `loader.conf` selects
 `Talos-prepare.efi`; preparation rewrites it to the exact final filename. The
-mainline bundle uses `Talos-v1.13.9-mainline.efi` so both kernel flavors remain
-distinguishable.
+mainline bundles use `Talos-v1.13.9-mainline.efi` and
+`Talos-v1.13.9-mainline-4k.efi` so all kernel flavors remain distinguishable.
 
 On upgrade, Talos keeps the currently booted UKI as fallback, writes the next
 same-version UKI as `Talos-v1.13.9~N.efi`, and changes `loader.conf` to select
@@ -283,26 +294,31 @@ rollback from every early-boot failure.
 
 ## CI operation
 
-`Validate patches` runs for pull requests and pushes to `main`. It verifies all
-three source pins, applies every patch with `git apply --check`, compile-checks
-the lifecycle package, runs the focused sd-boot unit tests, and exercises the
-prepare GPT transaction against disposable disk images.
+`Validate patches` runs for pull requests and pushes to `main`. It verifies the
+source pins and the Asahi, mainline 16K, and mainline 4K patch stacks, applies
+every patch with `git apply --check`, compile-checks the lifecycle package,
+runs the focused sd-boot unit tests, and exercises the prepare GPT transaction
+against disposable disk images.
 
 `Build and publish Asahi Talos` runs manually or when a matching release tag is
-pushed. Manual runs build the selected kernel flavor. A matching release tag
-builds the Asahi and mainline flavors in parallel on separate native ARM64
-runners. Each job builds the kernel, patched Talos installer base, and Talos
-imager, then verifies the final artifacts and installer binary. On tag builds,
-both jobs publish flavor-specific immutable images:
+pushed. Manual runs build the selected kernel flavor; `both` retains the older
+Asahi-plus-mainline selection and `all` selects all three. A matching release
+tag builds the Asahi, mainline 16K, and mainline 4K flavors in parallel on
+separate native ARM64 runners. Each job builds the kernel, patched Talos
+installer base, and Talos imager, then verifies the final artifacts and
+installer binary. On tag builds, all jobs publish flavor-specific immutable
+images:
 
 ```text
 ghcr.io/OWNER/talos-asahi/installer:<release>
 ghcr.io/OWNER/talos-asahi/installer:<release>-mainline
+ghcr.io/OWNER/talos-asahi/installer:<release>-mainline-4k
 ghcr.io/OWNER/talos-asahi/kernel:<asahi-kernel-release>
 ghcr.io/OWNER/talos-asahi/kernel:<mainline-kernel-release>
+ghcr.io/OWNER/talos-asahi/kernel:<mainline-4k-kernel-release>
 ```
 
-Only the Asahi job moves `installer:latest`; a mainline build can never replace
+Only the Asahi job moves `installer:latest`; neither mainline build can replace
 that tag.
 
 CI imports and exports the kernel's full BuildKit layer cache through
@@ -311,40 +327,52 @@ separate from release images and is reused across Talos-only patch revisions.
 Local builds do not use a remote cache unless `KERNEL_CACHE_IMAGE` is set
 explicitly.
 
-The experimental `mainline` flavor can be selected directly in a manual run
-and is also built alongside Asahi for every matching release tag. It keeps the
-Talos pkgs pin on upstream Linux 6.18.44, enables the Apple SoC drivers
-available there, and builds a separate 16 KiB-page UKI and installer. Mainline
-outputs carry a `-mainline` suffix. A tag build publishes its installer and
-kernel images and adds its ESP ZIP to the GitHub Release; a manual build
-publishes them only when `publish` is selected. Its build cache is isolated in
-GHCR at
-`build-cache:kernel-arm64-mainline`.
+The experimental `mainline` and `mainline-4k` flavors can be selected directly
+in a manual run and are also built alongside Asahi for every matching release
+tag. Both keep the Talos pkgs pin on upstream Linux 6.18.44 and enable the
+Apple SoC drivers available there. `mainline` builds a 16 KiB-page UKI and
+installer; `mainline-4k` retains the upstream Talos 4 KiB page size. Their
+outputs carry `-mainline` and `-mainline-4k` suffixes respectively. A tag build
+publishes both installer and kernel images and adds both ESP ZIPs to the GitHub
+Release; a manual build publishes only when `publish` is selected. Their build
+caches are isolated in GHCR at:
+
+```text
+build-cache:kernel-arm64-mainline
+build-cache:kernel-arm64-mainline-4k
+```
+
+On Apple DART instances whose hardware page size is 16 KiB, the 4 KiB kernel
+cannot construct translated DART page tables. Mainline Linux therefore selects
+an identity domain when the DART advertises bypass support. The resulting
+kernel has the usual 4 KiB userspace and container ABI, but devices behind
+those DARTs are not isolated from host memory. Do not treat `mainline-4k` as a
+safe VFIO or untrusted-device-passthrough host.
 
 The initial mainline test target is boot, internal NVMe, and the Mac Studio's
 wired 10 GbE interface. Wi-Fi, Bluetooth, GPU acceleration, USB-C data ports,
 RTC, CPU idle, and suspend are not expected to work with Linux 6.18 on this
 machine. Keep the known-good downstream Asahi UKI on the ESP while testing.
 
-A matching Git tag also creates one GitHub Release after both builds succeed.
-It contains separate Asahi and mainline ESP ZIPs plus one combined checksum
-file. Each ZIP contains systemd-boot, a matching one-time prepare UKI, the
-final Talos UKI, and `loader.conf` in their ESP-relative paths. Individual
-files are not published because the ZIP is the atomic installation overlay. The
-installer OCI archives and `build.env` metadata remain available only in the
-short-lived Actions artifacts. The repository itself does not track a binary
-output directory.
+A matching Git tag also creates one GitHub Release after all three builds
+succeed. It contains separate Asahi, mainline 16K, and mainline 4K ESP ZIPs
+plus one combined checksum file. Each ZIP contains systemd-boot, a matching
+one-time prepare UKI, the final Talos UKI, and `loader.conf` in their
+ESP-relative paths. Individual files are not published because the ZIP is the
+atomic installation overlay. The installer OCI archives and `build.env`
+metadata remain available only in the short-lived Actions artifacts. The
+repository itself does not track a binary output directory.
 
 `Track upstream Talos releases` runs daily and can also be dispatched manually.
 When a newer stable Talos release appears, it resolves the exact Talos commit,
 extracts the matching pkgs commit from that release's `Makefile`, updates the
 mainline kernel version from the pinned pkgs `Pkgfile`, resets
 `BUILD_REVISION=1`, and pushes an `automation/talos-vX.Y.Z` branch. It then
-dispatches an artifact-only Asahi and mainline build. The workflow also tries
-to open a draft pull request; repositories which keep GitHub Actions pull
-request creation disabled still get the update branch and test build, and can
-open the pull request manually. It never publishes images, moves `latest`, or
-creates a release tag automatically.
+dispatches artifact-only Asahi, mainline 16K, and mainline 4K builds. The
+workflow also tries to open a draft pull request; repositories which keep
+GitHub Actions pull request creation disabled still get the update branch and
+test builds, and can open the pull request manually. It never publishes
+images, moves `latest`, or creates a release tag automatically.
 
 For a release, update `versions.env`, make sure the patches still apply, bump
 `BUILD_REVISION` when appropriate, and push the exact computed tag. For the

@@ -17,6 +17,7 @@ trap cleanup EXIT
 
 KERNEL_FLAVOR=asahi "${root}/scripts/prepare-sources.sh" "${validation_root}/asahi"
 KERNEL_FLAVOR=mainline "${root}/scripts/prepare-sources.sh" "${validation_root}/mainline"
+KERNEL_FLAVOR=mainline-4k "${root}/scripts/prepare-sources.sh" "${validation_root}/mainline-4k"
 
 docker run --rm \
   -v "${validation_root}/asahi/talos:/src" \
@@ -27,5 +28,5 @@ docker run --rm \
     ./internal/app/lifecycle \
     ./internal/app/machined/pkg/runtime/v1alpha1/bootloader/sdboot
 
-printf 'Asahi and mainline sources, lifecycle, and sd-boot validation passed for %s\n' \
+printf 'Asahi, mainline 16K, and mainline 4K sources, lifecycle, and sd-boot validation passed for %s\n' \
   "${RELEASE_TAG}"

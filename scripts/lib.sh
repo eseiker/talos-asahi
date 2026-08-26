@@ -22,12 +22,21 @@ load_versions() {
       KERNEL_IMAGE_TAG="${ASAHI_KERNEL_VERSION}-asahi.${BUILD_REVISION}"
       ARTIFACT_TAG="${RELEASE_TAG}"
       BOOT_UKI="Talos-${TALOS_VERSION}.efi"
+      KERNEL_PAGE_SIZE="16k"
       ;;
     mainline)
       KERNEL_VERSION="${MAINLINE_KERNEL_VERSION}"
       KERNEL_IMAGE_TAG="${MAINLINE_KERNEL_VERSION}-mainline.${BUILD_REVISION}"
       ARTIFACT_TAG="${RELEASE_TAG}-mainline"
       BOOT_UKI="Talos-${TALOS_VERSION}-mainline.efi"
+      KERNEL_PAGE_SIZE="16k"
+      ;;
+    mainline-4k)
+      KERNEL_VERSION="${MAINLINE_KERNEL_VERSION}"
+      KERNEL_IMAGE_TAG="${MAINLINE_KERNEL_VERSION}-mainline-4k.${BUILD_REVISION}"
+      ARTIFACT_TAG="${RELEASE_TAG}-mainline-4k"
+      BOOT_UKI="Talos-${TALOS_VERSION}-mainline-4k.efi"
+      KERNEL_PAGE_SIZE="4k"
       ;;
     *)
       printf 'unsupported KERNEL_FLAVOR: %s\n' "${KERNEL_FLAVOR}" >&2
@@ -37,7 +46,7 @@ load_versions() {
 
   PREPARE_UKI="Talos-prepare.efi"
   BOOT_BUNDLE="talos-asahi-${ARTIFACT_TAG}-esp.zip"
-  export RELEASE_TAG KERNEL_FLAVOR KERNEL_VERSION KERNEL_IMAGE_TAG
+  export RELEASE_TAG KERNEL_FLAVOR KERNEL_VERSION KERNEL_IMAGE_TAG KERNEL_PAGE_SIZE
   export ARTIFACT_TAG BOOT_UKI PREPARE_UKI BOOT_BUNDLE
 }
 

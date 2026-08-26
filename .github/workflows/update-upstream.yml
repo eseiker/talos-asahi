@@ -62,7 +62,7 @@ jobs:
           echo "created=true" >>"${GITHUB_OUTPUT}"
           echo "needs_pull_request=true" >>"${GITHUB_OUTPUT}"
 
-      - name: Dispatch Asahi and mainline test build
+      - name: Dispatch all kernel flavor test builds
         if: steps.branch.outputs.created == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -70,7 +70,7 @@ jobs:
         run: |
           gh workflow run build.yml \
             --ref "${UPDATE_BRANCH}" \
-            --field kernel_flavor=both \
+            --field kernel_flavor=all \
             --field publish=false \
             --field publish_latest=false
 
@@ -99,7 +99,7 @@ jobs:
               "- mainline kernel: \`${MAINLINE_KERNEL_VERSION}\`" \
               '- build revision reset to `1`' \
               '' \
-              'The tracker separately dispatched an artifact-only Asahi and mainline build. Fix any patch conflicts in this branch, then merge and create the computed release tag manually.')"
+              'The tracker separately dispatched artifact-only Asahi, mainline 16K, and mainline 4K builds. Fix any patch conflicts in this branch, then merge and create the computed release tag manually.')"
 
       - name: Warn when pull request creation is disabled
         if: steps.pull_request.outcome == 'failure'
@@ -118,7 +118,7 @@ jobs:
             echo "- Release: \`${TALOS_VERSION}\`"
             echo "- Branch: \`${UPDATE_BRANCH}\`"
             if [[ "${{ steps.branch.outputs.created }}" == "true" ]]; then
-              echo "- Asahi and mainline test build dispatched"
+              echo "- Asahi, mainline 16K, and mainline 4K test builds dispatched"
             else
               echo "- Existing update branch or pull request retained"
             fi

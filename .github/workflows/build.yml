@@ -10,7 +10,9 @@ on:
         options:
           - asahi
           - mainline
+          - mainline-4k
           - both
+          - all
         default: asahi
       publish:
         description: Publish installer and component images to GHCR
@@ -42,7 +44,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kernel_flavor: ${{ (github.event_name == 'push' || inputs.kernel_flavor == 'both') && fromJSON('["asahi","mainline"]') || fromJSON(format('["{0}"]', inputs.kernel_flavor)) }}
+        kernel_flavor: ${{ (github.event_name == 'push' || inputs.kernel_flavor == 'all') && fromJSON('["asahi","mainline","mainline-4k"]') || inputs.kernel_flavor == 'both' && fromJSON('["asahi","mainline"]') || fromJSON(format('["{0}"]', inputs.kernel_flavor)) }}
     env:
       LOCAL_REGISTRY: localhost:5000
       PROGRESS: plain
@@ -85,6 +87,9 @@ jobs:
               ;;
             mainline)
               artifact_tag="${release_tag}-mainline"
+              ;;
+            mainline-4k)
+              artifact_tag="${release_tag}-mainline-4k"
               ;;
             *)
               echo "unsupported kernel flavor ${KERNEL_FLAVOR}" >&2
@@ -136,7 +141,7 @@ jobs:
     runs-on: ubuntu-24.04
 
     steps:
-      - name: Download both kernel flavor artifacts
+      - name: Download all kernel flavor artifacts
         uses: actions/download-artifact@v5
         with:
           pattern: talos-asahi-*
@@ -147,8 +152,9 @@ jobs:
         run: |
           asahi_bundle="_release-input/talos-asahi-${GITHUB_REF_NAME}/talos-asahi-${GITHUB_REF_NAME}-esp.zip"
           mainline_bundle="_release-input/talos-asahi-${GITHUB_REF_NAME}-mainline/talos-asahi-${GITHUB_REF_NAME}-mainline-esp.zip"
+          mainline_4k_bundle="_release-input/talos-asahi-${GITHUB_REF_NAME}-mainline-4k/talos-asahi-${GITHUB_REF_NAME}-mainline-4k-esp.zip"
 
-          for bundle in "${asahi_bundle}" "${mainline_bundle}"; do
+          for bundle in "${asahi_bundle}" "${mainline_bundle}" "${mainline_4k_bundle}"; do
             if [[ ! -f "${bundle}" ]]; then
               echo "missing release bundle ${bundle}" >&2
               exit 1
@@ -156,7 +162,7 @@ jobs:
           done
 
           mkdir -p _release
-          cp "${asahi_bundle}" "${mainline_bundle}" _release/
+          cp "${asahi_bundle}" "${mainline_bundle}" "${mainline_4k_bundle}" _release/
           (
             cd _release
             sha256sum talos-asahi-*-esp.zip >SHA256SUMS
