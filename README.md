@@ -212,6 +212,17 @@ checksum file. Each bundle contains systemd-boot, its UKI, and the matching
 and `build.env` metadata remain available only in the short-lived Actions
 artifacts. The repository itself does not track a binary output directory.
 
+`Track upstream Talos releases` runs daily and can also be dispatched manually.
+When a newer stable Talos release appears, it resolves the exact Talos commit,
+extracts the matching pkgs commit from that release's `Makefile`, updates the
+mainline kernel version from the pinned pkgs `Pkgfile`, resets
+`BUILD_REVISION=1`, and pushes an `automation/talos-vX.Y.Z` branch. It then
+dispatches an artifact-only Asahi and mainline build. The workflow also tries
+to open a draft pull request; repositories which keep GitHub Actions pull
+request creation disabled still get the update branch and test build, and can
+open the pull request manually. It never publishes images, moves `latest`, or
+creates a release tag automatically.
+
 For a release, update `versions.env`, make sure the patches still apply, bump
 `BUILD_REVISION` when appropriate, and push the exact computed tag. For the
 current pins that tag is `v1.13.9-asahi.3`.

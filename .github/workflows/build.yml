@@ -10,6 +10,7 @@ on:
         options:
           - asahi
           - mainline
+          - both
         default: asahi
       publish:
         description: Publish installer and component images to GHCR
@@ -41,7 +42,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kernel_flavor: ${{ github.event_name == 'push' && fromJSON('["asahi","mainline"]') || fromJSON(format('["{0}"]', inputs.kernel_flavor)) }}
+        kernel_flavor: ${{ (github.event_name == 'push' || inputs.kernel_flavor == 'both') && fromJSON('["asahi","mainline"]') || fromJSON(format('["{0}"]', inputs.kernel_flavor)) }}
     env:
       LOCAL_REGISTRY: localhost:5000
       PROGRESS: plain

@@ -1,0 +1,125 @@
+name: Track upstream Talos releases
+
+on:
+  schedule:
+    - cron: '37 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: talos-asahi-upstream-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Resolve latest stable Talos and pkgs pins
+        id: update
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./scripts/update-upstream.sh
+
+      - name: Create update branch
+        if: steps.update.outputs.updated == 'true'
+        id: branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TALOS_VERSION: ${{ steps.update.outputs.talos_version }}
+        run: |
+          branch="automation/talos-${TALOS_VERSION}"
+          echo "name=${branch}" >>"${GITHUB_OUTPUT}"
+
+          existing_pr="$(gh pr list --state all --head "${branch}" --json url --jq '.[0].url // empty')"
+          if [[ -n "${existing_pr}" ]]; then
+            echo "created=false" >>"${GITHUB_OUTPUT}"
+            echo "needs_pull_request=false" >>"${GITHUB_OUTPUT}"
+            echo "existing_pull_request=${existing_pr}" >>"${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          if git ls-remote --exit-code --heads origin "${branch}" >/dev/null 2>&1; then
+            echo "created=false" >>"${GITHUB_OUTPUT}"
+            echo "needs_pull_request=true" >>"${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git switch --create "${branch}"
+          git add versions.env
+          git commit -m "build: track Talos ${TALOS_VERSION}"
+          git push origin "HEAD:refs/heads/${branch}"
+          echo "created=true" >>"${GITHUB_OUTPUT}"
+          echo "needs_pull_request=true" >>"${GITHUB_OUTPUT}"
+
+      - name: Dispatch Asahi and mainline test build
+        if: steps.branch.outputs.created == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          UPDATE_BRANCH: ${{ steps.branch.outputs.name }}
+        run: |
+          gh workflow run build.yml \
+            --ref "${UPDATE_BRANCH}" \
+            --field kernel_flavor=both \
+            --field publish=false \
+            --field publish_latest=false
+
+      - name: Open draft pull request
+        if: steps.branch.outputs.needs_pull_request == 'true'
+        id: pull_request
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          UPDATE_BRANCH: ${{ steps.branch.outputs.name }}
+          TALOS_VERSION: ${{ steps.update.outputs.talos_version }}
+          TALOS_SHA: ${{ steps.update.outputs.talos_sha }}
+          PKGS_SHA: ${{ steps.update.outputs.pkgs_sha }}
+          MAINLINE_KERNEL_VERSION: ${{ steps.update.outputs.mainline_kernel_version }}
+        run: |
+          gh pr create \
+            --draft \
+            --base main \
+            --head "${UPDATE_BRANCH}" \
+            --title "build: track Talos ${TALOS_VERSION}" \
+            --body "$(printf '%s\n' \
+              'Automated upstream Talos stable release update.' \
+              '' \
+              "- Talos: \`${TALOS_VERSION}\` (\`${TALOS_SHA}\`)" \
+              "- pkgs: \`${PKGS_SHA}\`" \
+              "- mainline kernel: \`${MAINLINE_KERNEL_VERSION}\`" \
+              '- build revision reset to `1`' \
+              '' \
+              'The tracker separately dispatched an artifact-only Asahi and mainline build. Fix any patch conflicts in this branch, then merge and create the computed release tag manually.')"
+
+      - name: Warn when pull request creation is disabled
+        if: steps.pull_request.outcome == 'failure'
+        run: |
+          echo "::warning::The update branch and test build were created, but GitHub Actions is not allowed to create pull requests in this repository. Enable 'Allow GitHub Actions to create and approve pull requests' or open the update branch manually."
+
+      - name: Summarize update
+        if: steps.update.outputs.updated == 'true'
+        env:
+          UPDATE_BRANCH: ${{ steps.branch.outputs.name }}
+          TALOS_VERSION: ${{ steps.update.outputs.talos_version }}
+        run: |
+          {
+            echo "## Talos upstream update"
+            echo
+            echo "- Release: \`${TALOS_VERSION}\`"
+            echo "- Branch: \`${UPDATE_BRANCH}\`"
+            if [[ "${{ steps.branch.outputs.created }}" == "true" ]]; then
+              echo "- Asahi and mainline test build dispatched"
+            else
+              echo "- Existing update branch or pull request retained"
+            fi
+          } >>"${GITHUB_STEP_SUMMARY}"
