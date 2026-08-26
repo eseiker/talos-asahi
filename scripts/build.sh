@@ -94,8 +94,8 @@ container_id="$(docker create "${imager_image}")"
 docker cp "${container_id}:/usr/install/arm64/systemd-boot.efi" "${OUT_DIR}/BOOTAA64.efi"
 docker rm "${container_id}" >/dev/null
 
-printf '# systemd-boot configuration\n\ndefault %s*\ntimeout 5\neditor no\n' \
-  "${BOOT_UKI%.efi}" >"${OUT_DIR}/loader.conf"
+printf '# systemd-boot configuration\n\ndefault %s\ntimeout 5\neditor no\n' \
+  "${BOOT_UKI}" >"${OUT_DIR}/loader.conf"
 
 cat >"${OUT_DIR}/build.env" <<EOF
 TALOS_VERSION=${TALOS_VERSION}

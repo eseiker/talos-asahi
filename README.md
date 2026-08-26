@@ -36,7 +36,7 @@ STATE partition during a normal upgrade.
 For a repository named `OWNER/talos-asahi`, the immutable release tag is:
 
 ```text
-ghcr.io/OWNER/talos-asahi/installer:v1.13.9-asahi.3
+ghcr.io/OWNER/talos-asahi/installer:v1.13.9-asahi.4
 ```
 
 After the first ESP-based installation is working, upgrade a node with:
@@ -45,7 +45,7 @@ After the first ESP-based installation is working, upgrade a node with:
 NODE_IP=192.0.2.10
 talosctl upgrade \
   --nodes "${NODE_IP}" \
-  --image ghcr.io/OWNER/talos-asahi/installer:v1.13.9-asahi.3 \
+  --image ghcr.io/OWNER/talos-asahi/installer:v1.13.9-asahi.4 \
   --reboot-mode=powercycle
 ```
 
@@ -139,20 +139,28 @@ Download and extract the release boot bundle, then install its files into the
 existing Asahi ESP as follows:
 
 ```text
-EFI/BOOT/BOOTAA64.efi         <- BOOTAA64.efi
-EFI/Linux/Talos-v1.13.9~3.efi <- Talos-v1.13.9~3.efi
-loader/loader.conf            <- loader.conf
+EFI/BOOT/BOOTAA64.efi       <- BOOTAA64.efi
+EFI/Linux/Talos-v1.13.9.efi <- Talos-v1.13.9.efi
+loader/loader.conf          <- loader.conf
 ```
 
-The `~BUILD_REVISION` suffix keeps an existing UKI with the same upstream
-Talos version intact during a manual ESP transition. Use the `loader.conf`
-shipped in the same release; its exact default pattern selects the new file
-without accidentally matching the older UKI.
+The release bundle uses a stable bootstrap UKI name rather than encoding the
+downstream build revision in the ESP filename. The mainline bundle uses
+`Talos-v1.13.9-mainline.efi` so both kernel flavors remain distinguishable.
+Use the `loader.conf` shipped in the same bundle; it selects that filename
+exactly.
 
 On upgrade, Talos keeps the currently booted UKI as fallback, writes the next
-UKI, and changes `loader.conf` to select it. The patch also teaches Talos probe
-and revert paths to read and update that file without requiring persistent UEFI
-variables.
+same-version UKI as `Talos-v1.13.9~N.efi`, and changes `loader.conf` to select
+it. The `~N` suffix is owned by the installer and is independent of the
+downstream release revision. The patch also teaches Talos probe and revert
+paths to read and update that file without requiring persistent UEFI variables.
+
+Copying a newer same-version boot bundle manually replaces the stable bootstrap
+UKI instead of creating a rollback slot. Once the first patched release is
+installed, use the installer image for normal updates. If a manual ESP recovery
+is necessary, preserve a known-good UKI under a different filename before
+replacing the bootstrap file.
 
 Automatic systemd-boot boot counting is not implemented yet, so a completely
 unbootable new kernel may still require choosing or restoring the prior UKI
@@ -207,10 +215,11 @@ machine. Keep the known-good downstream Asahi UKI on the ESP while testing.
 A matching Git tag also creates one GitHub Release after both builds succeed.
 It contains separate Asahi and mainline ESP boot bundles plus one combined
 checksum file. Each bundle contains systemd-boot, its UKI, and the matching
-`loader.conf`; individual files are not published because GitHub normalizes the
-`~N` suffix used by Talos for same-version UKI slots. The installer OCI archives
-and `build.env` metadata remain available only in the short-lived Actions
-artifacts. The repository itself does not track a binary output directory.
+`loader.conf`; individual files are not published because the bundle is the
+atomic unit that keeps the bootloader, UKI, and matching default together. The
+installer OCI archives and `build.env` metadata remain available only in the
+short-lived Actions artifacts. The repository itself does not track a binary
+output directory.
 
 `Track upstream Talos releases` runs daily and can also be dispatched manually.
 When a newer stable Talos release appears, it resolves the exact Talos commit,
@@ -225,7 +234,7 @@ creates a release tag automatically.
 
 For a release, update `versions.env`, make sure the patches still apply, bump
 `BUILD_REVISION` when appropriate, and push the exact computed tag. For the
-current pins that tag is `v1.13.9-asahi.3`.
+current pins that tag is `v1.13.9-asahi.4`.
 
 ## Local validation and build
 

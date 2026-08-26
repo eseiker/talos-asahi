@@ -21,13 +21,13 @@ load_versions() {
       KERNEL_VERSION="${ASAHI_KERNEL_VERSION}"
       KERNEL_IMAGE_TAG="${ASAHI_KERNEL_VERSION}-asahi.${BUILD_REVISION}"
       ARTIFACT_TAG="${RELEASE_TAG}"
-      BOOT_UKI="Talos-${TALOS_VERSION}~${BUILD_REVISION}.efi"
+      BOOT_UKI="Talos-${TALOS_VERSION}.efi"
       ;;
     mainline)
       KERNEL_VERSION="${MAINLINE_KERNEL_VERSION}"
       KERNEL_IMAGE_TAG="${MAINLINE_KERNEL_VERSION}-mainline.${BUILD_REVISION}"
       ARTIFACT_TAG="${RELEASE_TAG}-mainline"
-      BOOT_UKI="Talos-${TALOS_VERSION}~${BUILD_REVISION}-mainline.efi"
+      BOOT_UKI="Talos-${TALOS_VERSION}-mainline.efi"
       ;;
     *)
       printf 'unsupported KERNEL_FLAVOR: %s\n' "${KERNEL_FLAVOR}" >&2

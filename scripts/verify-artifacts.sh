@@ -25,7 +25,7 @@ for file in "${required[@]}"; do
   fi
 done
 
-grep -Fxq "default ${BOOT_UKI%.efi}*" "${out_dir}/loader.conf"
+grep -Fxq "default ${BOOT_UKI}" "${out_dir}/loader.conf"
 if grep -Eq '(^|[[:space:]])ip=|talos\.config=' "${out_dir}/loader.conf"; then
   printf 'loader.conf contains a machine-specific network or config argument\n' >&2
   exit 1
