@@ -21,9 +21,8 @@ trap cleanup EXIT
 mkdir -p "${OUT_DIR}"
 "${root}/scripts/prepare-sources.sh" "${build_root}"
 
-kernel_image="${LOCAL_REGISTRY}/talos-asahi/kernel:${ASAHI_KERNEL_VERSION}-asahi.${BUILD_REVISION}"
-imager_image="local/talos-asahi/imager:${RELEASE_TAG}"
-boot_uki="Talos-${TALOS_VERSION}~${BUILD_REVISION}.efi"
+kernel_image="${LOCAL_REGISTRY}/talos-asahi/kernel:${KERNEL_IMAGE_TAG}"
+imager_image="local/talos-asahi/imager:${ARTIFACT_TAG}"
 kernel_target_args=(
   "--tag=${kernel_image}"
   "--output=type=docker"
@@ -36,7 +35,7 @@ if [[ -n "${KERNEL_CACHE_IMAGE:-}" ]]; then
   )
 fi
 
-printf 'building Asahi kernel image %s\n' "${kernel_image}"
+printf 'building %s kernel image %s\n' "${KERNEL_FLAVOR}" "${kernel_image}"
 "${make_cmd}" -C "${build_root}/pkgs" target-kernel \
   PLATFORM=linux/arm64 \
   PROGRESS="${PROGRESS}" \
@@ -70,7 +69,7 @@ docker run --rm \
   --entrypoint /usr/bin/unzstd \
   -v "${OUT_DIR}:/out" \
   "${imager_image}" \
-  -f /out/metal-arm64-uki.efi.zst -o "/out/${boot_uki}"
+  -f /out/metal-arm64-uki.efi.zst -o "/out/${BOOT_UKI}"
 rm -f "${OUT_DIR}/metal-arm64-uki.efi.zst"
 
 container_id="$(docker create "${imager_image}")"
@@ -78,32 +77,35 @@ docker cp "${container_id}:/usr/install/arm64/systemd-boot.efi" "${OUT_DIR}/BOOT
 docker rm "${container_id}" >/dev/null
 
 printf '# systemd-boot configuration\n\ndefault %s*\ntimeout 5\neditor no\n' \
-  "${boot_uki%.efi}" >"${OUT_DIR}/loader.conf"
+  "${BOOT_UKI%.efi}" >"${OUT_DIR}/loader.conf"
 
 cat >"${OUT_DIR}/build.env" <<EOF
 TALOS_VERSION=${TALOS_VERSION}
 TALOS_SHA=${TALOS_SHA}
 ASAHI_KERNEL_VERSION=${ASAHI_KERNEL_VERSION}
 ASAHI_KERNEL_SHA=${ASAHI_KERNEL_SHA}
+MAINLINE_KERNEL_VERSION=${MAINLINE_KERNEL_VERSION}
+KERNEL_FLAVOR=${KERNEL_FLAVOR}
+KERNEL_VERSION=${KERNEL_VERSION}
 RELEASE_TAG=${RELEASE_TAG}
-BOOT_UKI=${boot_uki}
+ARTIFACT_TAG=${ARTIFACT_TAG}
+BOOT_UKI=${BOOT_UKI}
 LOCAL_KERNEL_IMAGE=${kernel_image}
 LOCAL_IMAGER_IMAGE=${imager_image}
 EOF
 
-boot_bundle="talos-asahi-${RELEASE_TAG}-boot.tar.gz"
-tar -C "${OUT_DIR}" -czf "${OUT_DIR}/${boot_bundle}" \
-  BOOTAA64.EFI "${boot_uki}" loader.conf build.env
+tar -C "${OUT_DIR}" -czf "${OUT_DIR}/${BOOT_BUNDLE}" \
+  BOOTAA64.EFI "${BOOT_UKI}" loader.conf build.env
 
 (
   cd "${OUT_DIR}"
   write_sha256sums \
     BOOTAA64.EFI \
-    "${boot_uki}" \
+    "${BOOT_UKI}" \
     installer-arm64.tar \
     loader.conf \
     build.env \
-    "${boot_bundle}" >SHA256SUMS
+    "${BOOT_BUNDLE}" >SHA256SUMS
 )
 
 "${root}/scripts/verify-artifacts.sh" "${OUT_DIR}"

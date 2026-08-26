@@ -14,6 +14,14 @@ clone_pinned https://github.com/siderolabs/talos.git "${TALOS_SHA}" "${destinati
 clone_pinned https://github.com/siderolabs/pkgs.git "${PKGS_SHA}" "${destination}/pkgs"
 
 apply_patch_checked "${destination}/talos" "${root}/patches/talos-asahi.patch"
-apply_patch_checked "${destination}/pkgs" "${root}/patches/pkgs-asahi.patch"
+case "${KERNEL_FLAVOR}" in
+  asahi)
+    apply_patch_checked "${destination}/pkgs" "${root}/patches/pkgs-asahi.patch"
+    ;;
+  mainline)
+    apply_patch_checked "${destination}/pkgs" "${root}/patches/pkgs-mainline.patch"
+    ;;
+esac
 
-printf 'prepared Talos %s and pkgs %s\n' "${TALOS_SHA}" "${PKGS_SHA}"
+printf 'prepared Talos %s and pkgs %s for %s kernel\n' \
+  "${TALOS_SHA}" "${PKGS_SHA}" "${KERNEL_FLAVOR}"

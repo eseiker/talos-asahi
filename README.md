@@ -137,9 +137,24 @@ ghcr.io/OWNER/talos-asahi/kernel:<kernel-release>
 ```
 
 CI imports and exports the kernel's full BuildKit layer cache through
-`ghcr.io/OWNER/talos-asahi/build-cache:kernel-arm64`. The cache is separate
-from release images and is reused across Talos-only patch revisions. Local
-builds do not use a remote cache unless `KERNEL_CACHE_IMAGE` is set explicitly.
+`ghcr.io/OWNER/talos-asahi/build-cache:kernel-arm64-asahi`. The cache is
+separate from release images and is reused across Talos-only patch revisions.
+Local builds do not use a remote cache unless `KERNEL_CACHE_IMAGE` is set
+explicitly.
+
+Manual workflow runs can instead select the experimental `mainline` kernel
+flavor. It keeps the Talos pkgs pin on upstream Linux 6.18.44, enables the
+Apple SoC drivers available there, and builds a separate 16 KiB-page UKI and
+installer. Mainline release output is artifact-only: the workflow will not
+publish installer or kernel release images or create a release, even if
+`publish` is selected. Its names carry a `-mainline` suffix, and its build
+cache is isolated in GHCR at
+`build-cache:kernel-arm64-mainline`.
+
+The initial mainline test target is boot, internal NVMe, and the Mac Studio's
+wired 10 GbE interface. Wi-Fi, Bluetooth, GPU acceleration, USB-C data ports,
+RTC, CPU idle, and suspend are not expected to work with Linux 6.18 on this
+machine. Keep the known-good downstream Asahi UKI on the ESP while testing.
 
 A matching Git tag also creates a GitHub Release containing the ESP boot
 bundle, individual EFI files, checksums, build metadata, and the installer tar.
@@ -179,6 +194,7 @@ All refs are recorded in `versions.env`. The current build uses:
 - Talos `3ebd10a7c1bd0f81742bdcd0c3fe56d727db7401`
 - Talos pkgs `f541ca434ee63964319bb912e370f0ed407f8a18`
 - AsahiLinux/linux `77cb8f24c2381a8abb7272d7bbdec548d6426a8a`
+- Mainline Linux `6.18.44` (the kernel source pinned by Talos pkgs)
 
 Do not write a generated raw disk image over the whole internal Apple NVMe.
 That would replace the partition table instead of preserving the Asahi/macOS

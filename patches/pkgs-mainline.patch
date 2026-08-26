@@ -1,0 +1,50 @@
+diff --git a/kernel/build/pkg.yaml b/kernel/build/pkg.yaml
+index 40f25d5..3189f20 100644
+--- a/kernel/build/pkg.yaml
++++ b/kernel/build/pkg.yaml
+@@ -13,6 +13,45 @@ steps:
+         cd /src
+         cp -v /pkg/config-${CARCH} .config
+         cp -v /pkg/certs/* certs/
++      - |
++        if [[ "${ARCH}" == "arm64" ]]; then
++          cd /src
++
++          # Mainline 6.18 has the boot-critical Apple SoC support needed by
++          # the Mac14,13. Keep those drivers built-in and use 16 KiB pages.
++          scripts/config \
++            --enable ARCH_APPLE \
++            --enable ARM64_MEMORY_MODEL_CONTROL \
++            --enable APPLE_AIC \
++            --enable APPLE_WATCHDOG \
++            --enable APPLE_DART \
++            --enable APPLE_SART \
++            --enable APPLE_MAILBOX \
++            --enable APPLE_RTKIT \
++            --enable MFD_MACSMC \
++            --enable APPLE_PMGR_PWRSTATE \
++            --enable I2C_APPLE \
++            --enable NVME_APPLE \
++            --enable PCIE_APPLE \
++            --enable PINCTRL_APPLE_GPIO \
++            --enable PWM_APPLE \
++            --enable SPI_APPLE \
++            --enable SPMI_APPLE \
++            --enable GPIO_MACSMC \
++            --enable POWER_RESET_MACSMC \
++            --enable ARM_APPLE_SOC_CPUFREQ \
++            --enable APPLE_M1_CPU_PMU \
++            --enable COMMON_CLK_APPLE_NCO \
++            --enable NVMEM_APPLE_EFUSES \
++            --enable NVMEM_APPLE_SPMI \
++            --enable SERIAL_SAMSUNG \
++            --enable SERIAL_SAMSUNG_CONSOLE \
++            --disable ARM64_4K_PAGES \
++            --enable ARM64_16K_PAGES \
++            --disable ARM64_64K_PAGES
++
++          make olddefconfig
++        fi
+       - |
+         cd /src
+         for patch in $(find /pkg/patches -type f -name "*.patch" | sort); do

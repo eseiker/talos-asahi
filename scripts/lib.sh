@@ -14,7 +14,30 @@ load_versions() {
   source "${root}/versions.env"
 
   RELEASE_TAG="${TALOS_VERSION}-asahi.${BUILD_REVISION}"
-  export RELEASE_TAG
+  KERNEL_FLAVOR="${KERNEL_FLAVOR:-asahi}"
+
+  case "${KERNEL_FLAVOR}" in
+    asahi)
+      KERNEL_VERSION="${ASAHI_KERNEL_VERSION}"
+      KERNEL_IMAGE_TAG="${ASAHI_KERNEL_VERSION}-asahi.${BUILD_REVISION}"
+      ARTIFACT_TAG="${RELEASE_TAG}"
+      BOOT_UKI="Talos-${TALOS_VERSION}~${BUILD_REVISION}.efi"
+      ;;
+    mainline)
+      KERNEL_VERSION="${MAINLINE_KERNEL_VERSION}"
+      KERNEL_IMAGE_TAG="${MAINLINE_KERNEL_VERSION}-mainline.${BUILD_REVISION}"
+      ARTIFACT_TAG="${RELEASE_TAG}-mainline"
+      BOOT_UKI="Talos-${TALOS_VERSION}~${BUILD_REVISION}-mainline.efi"
+      ;;
+    *)
+      printf 'unsupported KERNEL_FLAVOR: %s\n' "${KERNEL_FLAVOR}" >&2
+      return 1
+      ;;
+  esac
+
+  BOOT_BUNDLE="talos-asahi-${ARTIFACT_TAG}-boot.tar.gz"
+  export RELEASE_TAG KERNEL_FLAVOR KERNEL_VERSION KERNEL_IMAGE_TAG
+  export ARTIFACT_TAG BOOT_UKI BOOT_BUNDLE
 }
 
 make_command() {

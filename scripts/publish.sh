@@ -11,6 +11,15 @@ TARGET_REPOSITORY="${TARGET_REPOSITORY:?set TARGET_REPOSITORY, for example ghcr.
 OUT_DIR="${OUT_DIR:-${root}/_out}"
 PUBLISH_LATEST="${PUBLISH_LATEST:-false}"
 
+# Load the exact build identity before publishing anything. Mainline builds are
+# intentionally test artifacts and must never become release image tags.
+# shellcheck disable=SC1091
+source "${OUT_DIR}/build.env"
+if [[ "${KERNEL_FLAVOR}" != "asahi" ]]; then
+  printf 'refusing to publish %s kernel test artifacts\n' "${KERNEL_FLAVOR}" >&2
+  exit 1
+fi
+
 # The imager tar retains the base installer's original repository tag. Loading
 # it is intentional here: the newly loaded image includes our custom UKI and
 # installer binary, and is immediately retagged into the requested repository.
@@ -26,8 +35,6 @@ if [[ "${PUBLISH_LATEST}" == "true" ]]; then
 fi
 
 # Publish the kernel as a traceable, optional input for later debugging.
-# shellcheck disable=SC1090
-source "${OUT_DIR}/build.env"
 kernel_ref="${TARGET_REPOSITORY}/kernel:${ASAHI_KERNEL_VERSION}-asahi.${BUILD_REVISION}"
 docker tag "${LOCAL_KERNEL_IMAGE}" "${kernel_ref}"
 docker push "${kernel_ref}"

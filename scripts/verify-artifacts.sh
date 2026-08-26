@@ -8,16 +8,14 @@ source "${root}/scripts/lib.sh"
 load_versions
 
 out_dir="${1:-${root}/_out}"
-boot_bundle="talos-asahi-${RELEASE_TAG}-boot.tar.gz"
-boot_uki="Talos-${TALOS_VERSION}~${BUILD_REVISION}.efi"
 required=(
   BOOTAA64.EFI
-  "${boot_uki}"
+  "${BOOT_UKI}"
   installer-arm64.tar
   loader.conf
   SHA256SUMS
   build.env
-  "${boot_bundle}"
+  "${BOOT_BUNDLE}"
 )
 
 for file in "${required[@]}"; do
@@ -27,7 +25,7 @@ for file in "${required[@]}"; do
   fi
 done
 
-grep -Fxq "default ${boot_uki%.efi}*" "${out_dir}/loader.conf"
+grep -Fxq "default ${BOOT_UKI%.efi}*" "${out_dir}/loader.conf"
 if grep -Eq '(^|[[:space:]])ip=|talos\.config=' "${out_dir}/loader.conf"; then
   printf 'loader.conf contains a machine-specific network or config argument\n' >&2
   exit 1
@@ -38,4 +36,4 @@ fi
   check_sha256sums SHA256SUMS
 )
 
-printf 'artifact verification passed for %s\n' "${RELEASE_TAG}"
+printf 'artifact verification passed for %s\n' "${ARTIFACT_TAG}"

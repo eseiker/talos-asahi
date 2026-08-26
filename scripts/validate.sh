@@ -13,10 +13,11 @@ cleanup() {
 }
 trap cleanup EXIT
 
-"${root}/scripts/prepare-sources.sh" "${validation_root}"
+KERNEL_FLAVOR=asahi "${root}/scripts/prepare-sources.sh" "${validation_root}/asahi"
+KERNEL_FLAVOR=mainline "${root}/scripts/prepare-sources.sh" "${validation_root}/mainline"
 
 docker run --rm \
-  -v "${validation_root}/talos:/src" \
+  -v "${validation_root}/asahi/talos:/src" \
   -v talos-asahi-go-mod:/go/pkg/mod \
   -v talos-asahi-go-build:/root/.cache/go-build \
   -w /src golang:1.26 \
@@ -24,4 +25,5 @@ docker run --rm \
     ./internal/app/lifecycle \
     ./internal/app/machined/pkg/runtime/v1alpha1/bootloader/sdboot
 
-printf 'source, lifecycle, and sd-boot validation passed for %s\n' "${RELEASE_TAG}"
+printf 'Asahi and mainline sources, lifecycle, and sd-boot validation passed for %s\n' \
+  "${RELEASE_TAG}"

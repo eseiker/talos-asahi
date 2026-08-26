@@ -3,6 +3,14 @@ name: Build and publish Asahi Talos
 on:
   workflow_dispatch:
     inputs:
+      kernel_flavor:
+        description: Kernel source to build
+        required: true
+        type: choice
+        options:
+          - asahi
+          - mainline
+        default: asahi
       publish:
         description: Publish installer and component images to GHCR
         required: true
@@ -32,6 +40,7 @@ jobs:
     env:
       LOCAL_REGISTRY: localhost:5000
       PROGRESS: plain
+      KERNEL_FLAVOR: ${{ inputs.kernel_flavor || 'asahi' }}
 
     steps:
       - name: Check out repository
@@ -64,14 +73,31 @@ jobs:
           talos_version="$(sed -n 's/^TALOS_VERSION=//p' versions.env)"
           build_revision="$(sed -n 's/^BUILD_REVISION=//p' versions.env)"
           release_tag="${talos_version}-asahi.${build_revision}"
+          case "${KERNEL_FLAVOR}" in
+            asahi)
+              artifact_tag="${release_tag}"
+              ;;
+            mainline)
+              artifact_tag="${release_tag}-mainline"
+              ;;
+            *)
+              echo "unsupported kernel flavor ${KERNEL_FLAVOR}" >&2
+              exit 1
+              ;;
+          esac
+          if [[ "${GITHUB_REF_TYPE}" == "tag" && "${KERNEL_FLAVOR}" != "asahi" ]]; then
+            echo "tag builds must use the asahi kernel flavor" >&2
+            exit 1
+          fi
           if [[ "${GITHUB_REF_TYPE}" == "tag" && "${GITHUB_REF_NAME}" != "${release_tag}" ]]; then
             echo "tag ${GITHUB_REF_NAME} does not match versions.env release ${release_tag}" >&2
             exit 1
           fi
           echo "RELEASE_TAG=${release_tag}" >>"${GITHUB_ENV}"
+          echo "ARTIFACT_TAG=${artifact_tag}" >>"${GITHUB_ENV}"
           target_repository="ghcr.io/${GITHUB_REPOSITORY,,}"
           echo "TARGET_REPOSITORY=${target_repository}" >>"${GITHUB_ENV}"
-          echo "KERNEL_CACHE_IMAGE=${target_repository}/build-cache:kernel-arm64" >>"${GITHUB_ENV}"
+          echo "KERNEL_CACHE_IMAGE=${target_repository}/build-cache:kernel-arm64-${KERNEL_FLAVOR}" >>"${GITHUB_ENV}"
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
@@ -84,7 +110,7 @@ jobs:
         run: ./scripts/build.sh
 
       - name: Publish GHCR images
-        if: github.event_name == 'push' || inputs.publish
+        if: env.KERNEL_FLAVOR == 'asahi' && (github.event_name == 'push' || inputs.publish)
         env:
           PUBLISH_LATEST: ${{ github.event_name == 'push' || inputs.publish_latest }}
         run: ./scripts/publish.sh
@@ -109,7 +135,7 @@ jobs:
       - name: Upload boot bundle and installer archive
         uses: actions/upload-artifact@v4
         with:
-          name: talos-asahi-${{ env.RELEASE_TAG }}
+          name: talos-asahi-${{ env.ARTIFACT_TAG }}
           path: |
             _out/BOOTAA64.EFI
             _out/Talos-*.efi
