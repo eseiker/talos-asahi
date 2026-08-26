@@ -73,7 +73,7 @@ docker run --rm \
 rm -f "${OUT_DIR}/metal-arm64-uki.efi.zst"
 
 container_id="$(docker create "${imager_image}")"
-docker cp "${container_id}:/usr/install/arm64/systemd-boot.efi" "${OUT_DIR}/BOOTAA64.EFI"
+docker cp "${container_id}:/usr/install/arm64/systemd-boot.efi" "${OUT_DIR}/BOOTAA64.efi"
 docker rm "${container_id}" >/dev/null
 
 printf '# systemd-boot configuration\n\ndefault %s*\ntimeout 5\neditor no\n' \
@@ -95,17 +95,11 @@ LOCAL_IMAGER_IMAGE=${imager_image}
 EOF
 
 tar -C "${OUT_DIR}" -czf "${OUT_DIR}/${BOOT_BUNDLE}" \
-  BOOTAA64.EFI "${BOOT_UKI}" loader.conf build.env
+  BOOTAA64.efi "${BOOT_UKI}" loader.conf
 
 (
   cd "${OUT_DIR}"
-  write_sha256sums \
-    BOOTAA64.EFI \
-    "${BOOT_UKI}" \
-    installer-arm64.tar \
-    loader.conf \
-    build.env \
-    "${BOOT_BUNDLE}" >SHA256SUMS
+  write_sha256sums "${BOOT_BUNDLE}" >SHA256SUMS
 )
 
 "${root}/scripts/verify-artifacts.sh" "${OUT_DIR}"

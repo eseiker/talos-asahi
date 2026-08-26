@@ -33,7 +33,7 @@ STATE partition during a normal upgrade.
 For a repository named `OWNER/talos-asahi`, the immutable release tag is:
 
 ```text
-ghcr.io/OWNER/talos-asahi/installer:v1.13.9-asahi.2
+ghcr.io/OWNER/talos-asahi/installer:v1.13.9-asahi.3
 ```
 
 After the first ESP-based installation is working, upgrade a node with:
@@ -42,7 +42,7 @@ After the first ESP-based installation is working, upgrade a node with:
 NODE_IP=192.0.2.10
 talosctl upgrade \
   --nodes "${NODE_IP}" \
-  --image ghcr.io/OWNER/talos-asahi/installer:v1.13.9-asahi.2 \
+  --image ghcr.io/OWNER/talos-asahi/installer:v1.13.9-asahi.3 \
   --reboot-mode=powercycle
 ```
 
@@ -100,9 +100,9 @@ Download and extract the release boot bundle, then install its files into the
 existing Asahi ESP as follows:
 
 ```text
-EFI/BOOT/BOOTAA64.EFI       <- BOOTAA64.EFI
-EFI/Linux/Talos-v1.13.9~2.efi <- Talos-v1.13.9~2.efi
-loader/loader.conf          <- loader.conf
+EFI/BOOT/BOOTAA64.efi         <- BOOTAA64.efi
+EFI/Linux/Talos-v1.13.9~3.efi <- Talos-v1.13.9~3.efi
+loader/loader.conf            <- loader.conf
 ```
 
 The `~BUILD_REVISION` suffix keeps an existing UKI with the same upstream
@@ -156,14 +156,17 @@ wired 10 GbE interface. Wi-Fi, Bluetooth, GPU acceleration, USB-C data ports,
 RTC, CPU idle, and suspend are not expected to work with Linux 6.18 on this
 machine. Keep the known-good downstream Asahi UKI on the ESP while testing.
 
-A matching Git tag also creates a GitHub Release containing the ESP boot
-bundle, individual EFI files, checksums, build metadata, and the installer tar.
-The repository itself does not track a binary output directory. Manual builds
-remain available as short-lived Actions artifacts.
+A matching Git tag also creates a GitHub Release containing only the ESP boot
+bundle and its checksum. The bundle contains systemd-boot, the UKI, and the
+matching `loader.conf`; individual files are not published because GitHub
+normalizes the `~N` suffix used by Talos for same-version UKI slots. The
+installer OCI archive and `build.env` metadata remain available only in the
+short-lived Actions artifact. The repository itself does not track a binary
+output directory.
 
 For a release, update `versions.env`, make sure the patches still apply, bump
 `BUILD_REVISION` when appropriate, and push the exact computed tag. For the
-current pins that tag is `v1.13.9-asahi.2`.
+current pins that tag is `v1.13.9-asahi.3`.
 
 ## Local validation and build
 

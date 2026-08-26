@@ -124,22 +124,14 @@ jobs:
             --verify-tag \
             --title "Talos Asahi ${RELEASE_TAG}" \
             --generate-notes \
-            _out/BOOTAA64.EFI \
-            _out/Talos-*.efi \
-            _out/loader.conf \
             _out/talos-asahi-*-boot.tar.gz \
-            _out/installer-arm64.tar \
-            _out/SHA256SUMS \
-            _out/build.env
+            _out/SHA256SUMS
 
       - name: Upload boot bundle and installer archive
         uses: actions/upload-artifact@v4
         with:
           name: talos-asahi-${{ env.ARTIFACT_TAG }}
           path: |
-            _out/BOOTAA64.EFI
-            _out/Talos-*.efi
-            _out/loader.conf
             _out/talos-asahi-*-boot.tar.gz
             _out/installer-arm64.tar
             _out/SHA256SUMS
