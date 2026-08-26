@@ -35,12 +35,17 @@ concurrency:
 
 jobs:
   build:
+    name: build (${{ matrix.kernel_flavor }})
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix:
+        kernel_flavor: ${{ github.event_name == 'push' && fromJSON('["asahi","mainline"]') || fromJSON(format('["{0}"]', inputs.kernel_flavor)) }}
     env:
       LOCAL_REGISTRY: localhost:5000
       PROGRESS: plain
-      KERNEL_FLAVOR: ${{ inputs.kernel_flavor || 'asahi' }}
+      KERNEL_FLAVOR: ${{ matrix.kernel_flavor }}
 
     steps:
       - name: Check out repository
@@ -85,10 +90,6 @@ jobs:
               exit 1
               ;;
           esac
-          if [[ "${GITHUB_REF_TYPE}" == "tag" && "${KERNEL_FLAVOR}" != "asahi" ]]; then
-            echo "tag builds must use the asahi kernel flavor" >&2
-            exit 1
-          fi
           if [[ "${GITHUB_REF_TYPE}" == "tag" && "${GITHUB_REF_NAME}" != "${release_tag}" ]]; then
             echo "tag ${GITHUB_REF_NAME} does not match versions.env release ${release_tag}" >&2
             exit 1
@@ -110,22 +111,10 @@ jobs:
         run: ./scripts/build.sh
 
       - name: Publish GHCR images
-        if: env.KERNEL_FLAVOR == 'asahi' && (github.event_name == 'push' || inputs.publish)
+        if: github.event_name == 'push' || inputs.publish
         env:
-          PUBLISH_LATEST: ${{ github.event_name == 'push' || inputs.publish_latest }}
+          PUBLISH_LATEST: ${{ env.KERNEL_FLAVOR == 'asahi' && (github.event_name == 'push' || inputs.publish_latest) }}
         run: ./scripts/publish.sh
-
-      - name: Publish GitHub release assets
-        if: github.event_name == 'push'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release create "${RELEASE_TAG}" \
-            --verify-tag \
-            --title "Talos Asahi ${RELEASE_TAG}" \
-            --generate-notes \
-            _out/talos-asahi-*-boot.tar.gz \
-            _out/SHA256SUMS
 
       - name: Upload boot bundle and installer archive
         uses: actions/upload-artifact@v4
@@ -138,3 +127,48 @@ jobs:
             _out/build.env
           if-no-files-found: error
           retention-days: 30
+
+  release:
+    name: publish GitHub release
+    if: github.event_name == 'push'
+    needs: build
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Download both kernel flavor artifacts
+        uses: actions/download-artifact@v5
+        with:
+          pattern: talos-asahi-*
+          path: _release-input
+
+      - name: Prepare release assets
+        shell: bash
+        run: |
+          asahi_bundle="_release-input/talos-asahi-${GITHUB_REF_NAME}/talos-asahi-${GITHUB_REF_NAME}-boot.tar.gz"
+          mainline_bundle="_release-input/talos-asahi-${GITHUB_REF_NAME}-mainline/talos-asahi-${GITHUB_REF_NAME}-mainline-boot.tar.gz"
+
+          for bundle in "${asahi_bundle}" "${mainline_bundle}"; do
+            if [[ ! -f "${bundle}" ]]; then
+              echo "missing release bundle ${bundle}" >&2
+              exit 1
+            fi
+          done
+
+          mkdir -p _release
+          cp "${asahi_bundle}" "${mainline_bundle}" _release/
+          (
+            cd _release
+            sha256sum talos-asahi-*-boot.tar.gz >SHA256SUMS
+          )
+
+      - name: Publish GitHub release assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            --verify-tag \
+            --title "Talos Asahi ${GITHUB_REF_NAME}" \
+            --generate-notes \
+            _release/talos-asahi-*-boot.tar.gz \
+            _release/SHA256SUMS

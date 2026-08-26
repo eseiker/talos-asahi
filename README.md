@@ -167,14 +167,21 @@ three source pins, applies every patch with `git apply --check`, compile-checks
 the lifecycle package, and runs the focused sd-boot unit tests.
 
 `Build and publish Asahi Talos` runs manually or when a matching release tag is
-pushed. It uses GitHub's native ARM64 runner, builds the kernel, patched Talos
-installer base, and Talos imager, verifies the final artifacts and installer
-binary, and optionally publishes:
+pushed. Manual runs build the selected kernel flavor. A matching release tag
+builds the Asahi and mainline flavors in parallel on separate native ARM64
+runners. Each job builds the kernel, patched Talos installer base, and Talos
+imager, then verifies the final artifacts and installer binary. On tag builds,
+both jobs publish flavor-specific immutable images:
 
 ```text
 ghcr.io/OWNER/talos-asahi/installer:<release>
-ghcr.io/OWNER/talos-asahi/kernel:<kernel-release>
+ghcr.io/OWNER/talos-asahi/installer:<release>-mainline
+ghcr.io/OWNER/talos-asahi/kernel:<asahi-kernel-release>
+ghcr.io/OWNER/talos-asahi/kernel:<mainline-kernel-release>
 ```
+
+Only the Asahi job moves `installer:latest`; a mainline build can never replace
+that tag.
 
 CI imports and exports the kernel's full BuildKit layer cache through
 `ghcr.io/OWNER/talos-asahi/build-cache:kernel-arm64-asahi`. The cache is
@@ -182,13 +189,14 @@ separate from release images and is reused across Talos-only patch revisions.
 Local builds do not use a remote cache unless `KERNEL_CACHE_IMAGE` is set
 explicitly.
 
-Manual workflow runs can instead select the experimental `mainline` kernel
-flavor. It keeps the Talos pkgs pin on upstream Linux 6.18.44, enables the
-Apple SoC drivers available there, and builds a separate 16 KiB-page UKI and
-installer. Mainline release output is artifact-only: the workflow will not
-publish installer or kernel release images or create a release, even if
-`publish` is selected. Its names carry a `-mainline` suffix, and its build
-cache is isolated in GHCR at
+The experimental `mainline` flavor can be selected directly in a manual run
+and is also built alongside Asahi for every matching release tag. It keeps the
+Talos pkgs pin on upstream Linux 6.18.44, enables the Apple SoC drivers
+available there, and builds a separate 16 KiB-page UKI and installer. Mainline
+outputs carry a `-mainline` suffix. A tag build publishes its installer and
+kernel images and adds its boot bundle to the GitHub Release; a manual build
+publishes them only when `publish` is selected. Its build cache is isolated in
+GHCR at
 `build-cache:kernel-arm64-mainline`.
 
 The initial mainline test target is boot, internal NVMe, and the Mac Studio's
@@ -196,13 +204,13 @@ wired 10 GbE interface. Wi-Fi, Bluetooth, GPU acceleration, USB-C data ports,
 RTC, CPU idle, and suspend are not expected to work with Linux 6.18 on this
 machine. Keep the known-good downstream Asahi UKI on the ESP while testing.
 
-A matching Git tag also creates a GitHub Release containing only the ESP boot
-bundle and its checksum. The bundle contains systemd-boot, the UKI, and the
-matching `loader.conf`; individual files are not published because GitHub
-normalizes the `~N` suffix used by Talos for same-version UKI slots. The
-installer OCI archive and `build.env` metadata remain available only in the
-short-lived Actions artifact. The repository itself does not track a binary
-output directory.
+A matching Git tag also creates one GitHub Release after both builds succeed.
+It contains separate Asahi and mainline ESP boot bundles plus one combined
+checksum file. Each bundle contains systemd-boot, its UKI, and the matching
+`loader.conf`; individual files are not published because GitHub normalizes the
+`~N` suffix used by Talos for same-version UKI slots. The installer OCI archives
+and `build.env` metadata remain available only in the short-lived Actions
+artifacts. The repository itself does not track a binary output directory.
 
 For a release, update `versions.env`, make sure the patches still apply, bump
 `BUILD_REVISION` when appropriate, and push the exact computed tag. For the
