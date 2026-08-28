@@ -9,6 +9,7 @@ EFI_TYPE_GUID=C12A7328-F81F-11D2-BA4B-00A0C93EC93B
 LINUX_TYPE_GUID=0FC63DAF-8483-4772-8E79-3D69D8477DE4
 META_BYTES=1048576
 PENDING_LABEL=TALOS_META_PENDING
+META_UUID_WRITER=/usr/libexec/talos-asahi/meta-uuid
 
 log() {
   printf '[talos-asahi-prepare] %s\n' "$*"
@@ -231,4 +232,12 @@ verify_meta_geometry "$meta_number"
   fail 'META GPT type verification failed'
 sgdisk --verify "$disk"
 
-log "GPT preparation complete: ESP=$esp_number META=$meta_number"
+[ -x "$META_UUID_WRITER" ] || fail "META UUID writer is missing: $META_UUID_WRITER"
+meta_first="$(partition_first "$meta_number")"
+meta_offset=$((meta_first * sector_size))
+if ! uuid_result="$($META_UUID_WRITER "$disk" "$meta_offset")"; then
+  fail 'unable to initialize UUIDOverride in META'
+fi
+log "$uuid_result"
+
+log "GPT and META preparation complete: ESP=$esp_number META=$meta_number"

@@ -114,18 +114,28 @@ VERIFY_TOOLS_IMAGE="${prepare_tools_image}" \
   'name: iscsi-tools' \
   'name: util-linux-tools'
 
-docker run --rm \
-  --user "$(id -u):$(id -g)" \
-  -v "${OUT_DIR}:/out" \
-  "${imager_image}" metal --arch arm64 --output-kind uki
+generate_metal_uki() {
+  local destination="$1"
+  shift
 
-docker run --rm \
-  --user "$(id -u):$(id -g)" \
-  --entrypoint /usr/bin/unzstd \
-  -v "${OUT_DIR}:/out" \
-  "${imager_image}" \
-  -f /out/metal-arm64-uki.efi.zst -o "/out/${BOOT_UKI}"
-rm -f "${OUT_DIR}/metal-arm64-uki.efi.zst"
+  docker run --rm \
+    --user "$(id -u):$(id -g)" \
+    -v "${OUT_DIR}:/out" \
+    "${imager_image}" metal --arch arm64 --output-kind uki "$@"
+
+  docker run --rm \
+    --user "$(id -u):$(id -g)" \
+    --entrypoint /usr/bin/unzstd \
+    -v "${OUT_DIR}:/out" \
+    "${imager_image}" \
+    -f /out/metal-arm64-uki.efi.zst -o "/out/${destination}"
+  rm -f "${OUT_DIR}/metal-arm64-uki.efi.zst"
+}
+
+generate_metal_uki "${BOOT_UKI}"
+generate_metal_uki "${LONGHORN_BOOT_UKI}" \
+  --system-extension-image "${ISCSI_TOOLS_IMAGE}" \
+  --system-extension-image "${UTIL_LINUX_TOOLS_IMAGE}"
 
 container_id="$(docker create "${imager_image}")"
 docker cp "${container_id}:/usr/install/arm64/systemd-boot.efi" "${OUT_DIR}/BOOTAA64.efi"
@@ -137,9 +147,17 @@ docker run --rm \
   -v "${OUT_DIR}:/out" \
   "${prepare_tools_image}" \
   "/out/${BOOT_UKI}" "/out/${PREPARE_UKI}" "${BOOT_UKI}"
+docker run --rm \
+  --user "$(id -u):$(id -g)" \
+  -v "${OUT_DIR}:/out" \
+  "${prepare_tools_image}" \
+  "/out/${LONGHORN_BOOT_UKI}" "/out/${LONGHORN_PREPARE_UKI}" \
+  "${LONGHORN_BOOT_UKI}"
 
 printf '# systemd-boot configuration\n\ndefault %s\ntimeout 0\neditor no\n' \
   "${PREPARE_UKI}" >"${OUT_DIR}/loader.conf"
+printf '# systemd-boot configuration\n\ndefault %s\ntimeout 0\neditor no\n' \
+  "${PREPARE_UKI}" >"${OUT_DIR}/loader-longhorn.conf"
 
 cat >"${OUT_DIR}/build.env" <<EOF
 TALOS_VERSION=${TALOS_VERSION}
@@ -158,32 +176,53 @@ UTIL_LINUX_TOOLS_IMAGE=${UTIL_LINUX_TOOLS_IMAGE}
 BOOT_UKI=${BOOT_UKI}
 PREPARE_UKI=${PREPARE_UKI}
 BOOT_BUNDLE=${BOOT_BUNDLE}
+LONGHORN_BOOT_UKI=${LONGHORN_BOOT_UKI}
+LONGHORN_PREPARE_UKI=${LONGHORN_PREPARE_UKI}
+LONGHORN_BOOT_BUNDLE=${LONGHORN_BOOT_BUNDLE}
 LOCAL_KERNEL_IMAGE=${kernel_image}
 LOCAL_INSTALLER_BASE_IMAGE=${installer_base_image}
 LOCAL_IMAGER_IMAGE=${imager_image}
 EOF
 
-bundle_root="${build_root}/esp"
-mkdir -p "${bundle_root}/EFI/BOOT" "${bundle_root}/EFI/Linux" "${bundle_root}/loader"
-cp "${OUT_DIR}/BOOTAA64.efi" "${bundle_root}/EFI/BOOT/BOOTAA64.efi"
-cp "${OUT_DIR}/${PREPARE_UKI}" "${bundle_root}/EFI/Linux/${PREPARE_UKI}"
-cp "${OUT_DIR}/${BOOT_UKI}" "${bundle_root}/EFI/Linux/${BOOT_UKI}"
-cp "${OUT_DIR}/loader.conf" "${bundle_root}/loader/loader.conf"
-find "${bundle_root}" -exec touch -t 198001010000 {} +
-rm -f "${OUT_DIR}/${BOOT_BUNDLE}"
-docker run --rm \
-  --user "$(id -u):$(id -g)" \
-  --entrypoint /usr/bin/zip \
-  --workdir /bundle \
-  -v "${bundle_root}:/bundle:ro" \
-  -v "${OUT_DIR}:/out" \
-  "${prepare_tools_image}" \
-  -X -D -q -r "/out/${BOOT_BUNDLE}" EFI loader
+build_esp_bundle() {
+  local final_uki="$1"
+  local prepare_uki_source="$2"
+  local loader_source="$3"
+  local bundle="$4"
+  local bundle_root="${build_root}/esp-${bundle}"
+
+  mkdir -p \
+    "${bundle_root}/EFI/BOOT" \
+    "${bundle_root}/EFI/Linux" \
+    "${bundle_root}/loader"
+  cp "${OUT_DIR}/BOOTAA64.efi" "${bundle_root}/EFI/BOOT/BOOTAA64.efi"
+  cp "${OUT_DIR}/${prepare_uki_source}" \
+    "${bundle_root}/EFI/Linux/${PREPARE_UKI}"
+  cp "${OUT_DIR}/${final_uki}" "${bundle_root}/EFI/Linux/${final_uki}"
+  cp "${OUT_DIR}/${loader_source}" "${bundle_root}/loader/loader.conf"
+  find "${bundle_root}" -exec touch -t 198001010000 {} +
+  rm -f "${OUT_DIR}/${bundle}"
+  docker run --rm \
+    --user "$(id -u):$(id -g)" \
+    --entrypoint /usr/bin/zip \
+    --workdir /bundle \
+    -v "${bundle_root}:/bundle:ro" \
+    -v "${OUT_DIR}:/out" \
+    "${prepare_tools_image}" \
+    -X -D -q -r "/out/${bundle}" EFI loader
+}
+
+build_esp_bundle \
+  "${BOOT_UKI}" "${PREPARE_UKI}" loader.conf "${BOOT_BUNDLE}"
+build_esp_bundle \
+  "${LONGHORN_BOOT_UKI}" "${LONGHORN_PREPARE_UKI}" \
+  loader-longhorn.conf "${LONGHORN_BOOT_BUNDLE}"
 
 (
   cd "${OUT_DIR}"
-  write_sha256sums "${BOOT_BUNDLE}" >SHA256SUMS
+  write_sha256sums "${BOOT_BUNDLE}" "${LONGHORN_BOOT_BUNDLE}" >SHA256SUMS
 )
 
-"${root}/scripts/verify-artifacts.sh" "${OUT_DIR}"
+VERIFY_TOOLS_IMAGE="${prepare_tools_image}" \
+  "${root}/scripts/verify-artifacts.sh" "${OUT_DIR}"
 printf 'build complete: %s\n' "${OUT_DIR}"

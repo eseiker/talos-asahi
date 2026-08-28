@@ -46,8 +46,12 @@ load_versions() {
 
   PREPARE_UKI="Talos-prepare.efi"
   BOOT_BUNDLE="talos-asahi-${ARTIFACT_TAG}-esp.zip"
+  LONGHORN_BOOT_UKI="${BOOT_UKI%.efi}-longhorn.efi"
+  LONGHORN_PREPARE_UKI="Talos-prepare-longhorn.efi"
+  LONGHORN_BOOT_BUNDLE="talos-asahi-${ARTIFACT_TAG}-longhorn-esp.zip"
   export RELEASE_TAG KERNEL_FLAVOR KERNEL_VERSION KERNEL_IMAGE_TAG KERNEL_PAGE_SIZE
   export ARTIFACT_TAG BOOT_UKI PREPARE_UKI BOOT_BUNDLE
+  export LONGHORN_BOOT_UKI LONGHORN_PREPARE_UKI LONGHORN_BOOT_BUNDLE
 }
 
 make_command() {

@@ -7,6 +7,7 @@ export PATH=/usr/sbin:/usr/bin:/sbin:/bin
 
 work_dir="${1:-/tmp/prepare-gpt-tests}"
 helper=/usr/libexec/talos-asahi/prepare-gpt
+uuid_helper=/usr/libexec/talos-asahi/meta-uuid
 mkdir -p "$work_dir"
 
 fail() {
@@ -34,13 +35,11 @@ new_image() {
   sgdisk --new=4:100352:129023 --typecode=4:af0a --change-name=4:RecoveryOSContainer "$image" >/dev/null
 }
 
-assert_zero_meta() {
+read_meta_uuid() {
   image="$1"
   number="$2"
   first="$(partition_first "$image" "$number")"
-  expected="$(dd if=/dev/zero bs=1M count=1 status=none | sha256sum | awk '{ print $1 }')"
-  actual="$(dd if="$image" bs=512 skip="$first" count=2048 status=none | sha256sum | awk '{ print $1 }')"
-  [ "$actual" = "$expected" ] || fail 'META extent is not zero-filled'
+  "$uuid_helper" "$image" "$((first * 512))" | awk '{ print $3 }'
 }
 
 standard="$work_dir/standard.img"
@@ -49,13 +48,20 @@ printf 'old-data' | dd of="$standard" bs=1 seek=$((18432 * 512)) conv=notrunc st
 "$helper" "$standard" 1 512 >/dev/null
 [ "$(partition_name "$standard" 1)" = EFI ] || fail 'ESP was not relabeled'
 [ "$(partition_name "$standard" 2)" = META ] || fail 'META was not created'
-assert_zero_meta "$standard" 2
+standard_uuid="$(read_meta_uuid "$standard" 2)"
+case "$standard_uuid" in
+  ????????-????-????-????-????????????) ;;
+  *) fail "META UUIDOverride is invalid: $standard_uuid" ;;
+esac
 
 meta_first="$(partition_first "$standard" 2)"
-printf 'preserve-existing-meta' | dd of="$standard" bs=1 seek=$((meta_first * 512)) conv=notrunc status=none
+sentinel_offset=$((meta_first * 512 + 700 * 1024))
+printf 'preserve-existing-meta' | dd of="$standard" bs=1 seek="$sentinel_offset" conv=notrunc status=none
 "$helper" "$standard" 1 512 >/dev/null
-preserved="$(dd if="$standard" bs=1 skip=$((meta_first * 512)) count=22 status=none)"
+preserved="$(dd if="$standard" bs=1 skip="$sentinel_offset" count=22 status=none)"
 [ "$preserved" = preserve-existing-meta ] || fail 'idempotent run erased existing META contents'
+[ "$(read_meta_uuid "$standard" 2)" = "$standard_uuid" ] || \
+  fail 'idempotent run changed UUIDOverride'
 
 pending="$work_dir/pending.img"
 new_image "$pending"
@@ -63,7 +69,11 @@ sgdisk --new=2:18432:20479 --typecode=2:8300 --change-name=2:TALOS_META_PENDING 
 printf 'interrupted-data' | dd of="$pending" bs=1 seek=$((18432 * 512)) conv=notrunc status=none
 "$helper" "$pending" 1 512 >/dev/null
 [ "$(partition_name "$pending" 2)" = META ] || fail 'pending META was not committed'
-assert_zero_meta "$pending" 2
+pending_uuid="$(read_meta_uuid "$pending" 2)"
+case "$pending_uuid" in
+  ????????-????-????-????-????????????) ;;
+  *) fail "recovered META UUIDOverride is invalid: $pending_uuid" ;;
+esac
 
 blocked="$work_dir/blocked.img"
 new_image "$blocked"

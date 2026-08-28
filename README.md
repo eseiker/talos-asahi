@@ -47,9 +47,12 @@ Download the ZIP for the desired kernel flavor from the matching GitHub
 Release:
 
 ```text
-talos-asahi-v1.13.9-asahi.6-esp.zip
-talos-asahi-v1.13.9-asahi.6-mainline-esp.zip
-talos-asahi-v1.13.9-asahi.6-mainline-4k-esp.zip
+talos-asahi-v1.13.9-asahi.7-esp.zip
+talos-asahi-v1.13.9-asahi.7-mainline-esp.zip
+talos-asahi-v1.13.9-asahi.7-mainline-4k-esp.zip
+talos-asahi-v1.13.9-asahi.7-longhorn-esp.zip
+talos-asahi-v1.13.9-asahi.7-mainline-longhorn-esp.zip
+talos-asahi-v1.13.9-asahi.7-mainline-4k-longhorn-esp.zip
 ```
 
 The Asahi flavor is the default. Both mainline flavors are experimental and
@@ -69,7 +72,9 @@ loader/loader.conf
 
 The mainline bundle names its final UKI
 `EFI/Linux/Talos-v1.13.9-mainline.efi`; the 4 KiB bundle uses
-`EFI/Linux/Talos-v1.13.9-mainline-4k.efi`. None of the bundles contains or
+`EFI/Linux/Talos-v1.13.9-mainline-4k.efi`. The three Longhorn bundles append
+`-longhorn` to those UKI names and include `iscsi-tools` and
+`util-linux-tools` in the UKI initramfs. None of the bundles contains or
 replaces Asahi's `m1n1/boot.bin`.
 
 ### 2. Install the official Asahi UEFI environment
@@ -85,7 +90,7 @@ release overlay. The installer prints the new EFI PARTUUID; use that value
 below:
 
 ```sh
-BUNDLE="$HOME/Downloads/talos-asahi-v1.13.9-asahi.6-esp.zip"
+BUNDLE="$HOME/Downloads/talos-asahi-v1.13.9-asahi.7-esp.zip"
 ESP_PARTUUID="replace-with-the-EFI-PARTUUID-shown-by-the-installer"
 
 diskutil mount "${ESP_PARTUUID}"
@@ -118,45 +123,45 @@ following one-time transaction:
    immediately after the ESP, initially named `TALOS_META_PENDING`.
 2. Zero-fill and verify the whole new partition.
 3. Rename the ESP to `EFI` and the new partition to `META`.
-4. Change `loader.conf` to select the final Talos UKI.
-5. Delete `EFI/Linux/Talos-prepare.efi`, flush the ESP, and reboot.
+4. Generate a random UUID and store it as Talos META key `UUIDOverride`
+   (`0x0f`), then read it back from both redundant ADV copies.
+5. Change `loader.conf` to select the final Talos UKI.
+6. Delete `EFI/Linux/Talos-prepare.efi`, flush the ESP, and reboot.
 
 An interrupted run resumes from `TALOS_META_PENDING`. An existing valid
-`META` is preserved and is never zero-filled again. Any unexpected partition,
-size, type, or placement stops preparation without deleting the prepare UKI or
-switching the boot target. Do not proceed to `apply-config` after such an
-error.
+`META` is never zero-filled again, and an existing valid `UUIDOverride` is
+preserved. Malformed META data or any unexpected partition, size, type, or
+placement stops preparation without deleting the prepare UKI or switching the
+boot target. Do not proceed to `apply-config` after such an error.
 
-### 4. Set the machine UUID before applying configuration
+### 4. Verify the machine UUID before applying configuration
 
 The tested Asahi U-Boot environment exposes an all-zero SMBIOS machine UUID.
-After the automatic reboot reaches Talos maintenance mode, generate one stable
-UUID and store it in META key `UUIDOverride` (`0x0f`):
+The preparation UKI therefore generates one stable random UUID and stores it in
+META key `UUIDOverride` (`0x0f`) before booting Talos. After the automatic
+reboot reaches Talos maintenance mode, verify both the stored key and the live
+system UUID:
 
 ```sh
 NODE=192.0.2.10
-MACHINE_UUID="$(uuidgen | tr '[:upper:]' '[:lower:]')"
 
-talosctl meta write 0x0f "${MACHINE_UUID}" \
+talosctl get metakeys 0x0f -o yaml \
   --nodes "${NODE}" \
   --endpoints "${NODE}" \
   --insecure
-```
-
-The META write is flushed to disk and updates the live system information; no
-reboot is required. Verify both the stored key and the reported system UUID
-before enrolling the machine in Omni or applying its machine configuration:
-
-```sh
-talosctl get metakeys 0x0f -o yaml \
-  --nodes "${NODE}" --endpoints "${NODE}" --insecure
 talosctl get systeminformation -o yaml \
   --nodes "${NODE}" --endpoints "${NODE}" --insecure
 ```
 
-Do not generate another value on a retry or reinstall when key `0x0f` already
-exists. Preserve the same UUID if META ever has to be recovered; changing it
-creates a different machine identity in Omni.
+The two values must match and must not be all zeroes. Direct maintenance-mode
+connections intentionally receive only the Talos `Reader` role, so
+`talosctl meta write ... --insecure` is not a valid fallback and returns
+`PermissionDenied`. Do not apply a machine configuration if the key is absent
+or the values differ.
+
+The generated UUID survives retries, reinstalls, and normal upgrades because
+the existing META contents are preserved. Back it up before manually
+recovering META; changing it creates a different machine identity in Omni.
 
 ### 5. Apply a non-wiping Talos configuration
 
@@ -167,14 +172,16 @@ repository's installer image, and disable whole-disk wiping:
 machine:
   install:
     disk: /dev/nvme0n1
-    image: ghcr.io/OWNER/talos-asahi/installer:v1.13.9-asahi.6
+    image: ghcr.io/OWNER/talos-asahi/installer:v1.13.9-asahi.7
     wipe: false
 ```
 
 Keep the installer image flavor matched to the ESP bundle. Use
-`:v1.13.9-asahi.6-mainline` with the mainline 16K ZIP and
-`:v1.13.9-asahi.6-mainline-4k` with the mainline 4K ZIP. Mixing them causes
+`:v1.13.9-asahi.7-mainline` with the mainline 16K ZIP and
+`:v1.13.9-asahi.7-mainline-4k` with the mainline 4K ZIP. Mixing them causes
 the installer to replace the selected test UKI with a different kernel flavor.
+Likewise, use a `*-longhorn-esp.zip` only with the matching installer tag that
+ends in `-longhorn`.
 
 Confirm the actual NVMe device name on the target rather than copying the
 example blindly, then apply the complete generated machine configuration in
@@ -197,7 +204,7 @@ internal NVMe.
 For a repository named `OWNER/talos-asahi`, the immutable release tag is:
 
 ```text
-ghcr.io/OWNER/talos-asahi/installer:v1.13.9-asahi.6
+ghcr.io/OWNER/talos-asahi/installer:v1.13.9-asahi.7
 ```
 
 Every kernel flavor also has a `-longhorn` installer variant. It contains the
@@ -205,14 +212,27 @@ same patched kernel and installer, plus the Talos `iscsi-tools` and
 `util-linux-tools` system extensions required by Longhorn:
 
 ```text
-ghcr.io/OWNER/talos-asahi/installer:v1.13.9-asahi.6-longhorn
-ghcr.io/OWNER/talos-asahi/installer:v1.13.9-asahi.6-mainline-longhorn
-ghcr.io/OWNER/talos-asahi/installer:v1.13.9-asahi.6-mainline-4k-longhorn
+ghcr.io/OWNER/talos-asahi/installer:v1.13.9-asahi.7-longhorn
+ghcr.io/OWNER/talos-asahi/installer:v1.13.9-asahi.7-mainline-longhorn
+ghcr.io/OWNER/talos-asahi/installer:v1.13.9-asahi.7-mainline-4k-longhorn
 ```
 
-Choose the Longhorn variant only when those extensions are required. The ESP
-bundle is shared with the corresponding regular installer because the kernel
-flavor and Apple boot chain are unchanged.
+Choose the Longhorn variant only when those extensions are required. Its ESP
+bundle has the same Apple boot chain and prepare flow, but its final Talos UKI
+is different because the extensions are embedded in the initramfs.
+
+GitHub Releases also publish the three Longhorn installer OCI archives for
+offline use:
+
+```text
+talos-asahi-v1.13.9-asahi.7-longhorn-installer-arm64.tar
+talos-asahi-v1.13.9-asahi.7-mainline-longhorn-installer-arm64.tar
+talos-asahi-v1.13.9-asahi.7-mainline-4k-longhorn-installer-arm64.tar
+```
+
+They are installer image archives, not ESP overlays. Use the matching
+`*-longhorn-esp.zip` for initial boot preparation. The six ESP ZIPs and three
+Longhorn installer archives are covered by the release `SHA256SUMS` file.
 
 After the first ESP-based installation is working, upgrade a node with:
 
@@ -220,7 +240,7 @@ After the first ESP-based installation is working, upgrade a node with:
 NODE_IP=192.0.2.10
 talosctl upgrade \
   --nodes "${NODE_IP}" \
-  --image ghcr.io/OWNER/talos-asahi/installer:v1.13.9-asahi.6 \
+  --image ghcr.io/OWNER/talos-asahi/installer:v1.13.9-asahi.7 \
   --reboot-mode=powercycle
 ```
 
@@ -249,7 +269,8 @@ this exact contract:
 - GPT partition type: Linux filesystem data
   (`0FC63DAF-8483-4772-8E79-3D69D8477DE4`)
 - Size: exactly 1 MiB
-- Contents: raw and initially zero-filled; do not create a filesystem
+- Contents: raw Talos META/ADV data containing the generated `UUIDOverride`;
+  do not create a filesystem
 
 Talos locates this partition by the GPT PARTLABEL, not by a filesystem label or
 a directory named `META` on the ESP. It stores raw metadata and upgrade state
@@ -393,7 +414,7 @@ images, moves `latest`, or creates a release tag automatically.
 
 For a release, update `versions.env`, make sure the patches still apply, bump
 `BUILD_REVISION` when appropriate, and push the exact computed tag. For the
-current pins that tag is `v1.13.9-asahi.6`.
+current pins that tag is `v1.13.9-asahi.7`.
 
 ## Local validation and build
 
