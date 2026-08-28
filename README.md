@@ -47,12 +47,12 @@ Download the ZIP for the desired kernel flavor from the matching GitHub
 Release:
 
 ```text
-talos-asahi-v1.13.9-asahi.7-esp.zip
-talos-asahi-v1.13.9-asahi.7-mainline-esp.zip
-talos-asahi-v1.13.9-asahi.7-mainline-4k-esp.zip
-talos-asahi-v1.13.9-asahi.7-longhorn-esp.zip
-talos-asahi-v1.13.9-asahi.7-mainline-longhorn-esp.zip
-talos-asahi-v1.13.9-asahi.7-mainline-4k-longhorn-esp.zip
+talos-asahi-v1.13.9-asahi.8-esp.zip
+talos-asahi-v1.13.9-asahi.8-mainline-esp.zip
+talos-asahi-v1.13.9-asahi.8-mainline-4k-esp.zip
+talos-asahi-v1.13.9-asahi.8-longhorn-esp.zip
+talos-asahi-v1.13.9-asahi.8-mainline-longhorn-esp.zip
+talos-asahi-v1.13.9-asahi.8-mainline-4k-longhorn-esp.zip
 ```
 
 The Asahi flavor is the default. Both mainline flavors are experimental and
@@ -90,7 +90,7 @@ release overlay. The installer prints the new EFI PARTUUID; use that value
 below:
 
 ```sh
-BUNDLE="$HOME/Downloads/talos-asahi-v1.13.9-asahi.7-esp.zip"
+BUNDLE="$HOME/Downloads/talos-asahi-v1.13.9-asahi.8-esp.zip"
 ESP_PARTUUID="replace-with-the-EFI-PARTUUID-shown-by-the-installer"
 
 diskutil mount "${ESP_PARTUUID}"
@@ -172,13 +172,13 @@ repository's installer image, and disable whole-disk wiping:
 machine:
   install:
     disk: /dev/nvme0n1
-    image: ghcr.io/OWNER/talos-asahi/installer:v1.13.9-asahi.7
+    image: ghcr.io/OWNER/talos-asahi/installer:v1.13.9-asahi.8
     wipe: false
 ```
 
 Keep the installer image flavor matched to the ESP bundle. Use
-`:v1.13.9-asahi.7-mainline` with the mainline 16K ZIP and
-`:v1.13.9-asahi.7-mainline-4k` with the mainline 4K ZIP. Mixing them causes
+`:v1.13.9-asahi.8-mainline` with the mainline 16K ZIP and
+`:v1.13.9-asahi.8-mainline-4k` with the mainline 4K ZIP. Mixing them causes
 the installer to replace the selected test UKI with a different kernel flavor.
 Likewise, use a `*-longhorn-esp.zip` only with the matching installer tag that
 ends in `-longhorn`.
@@ -204,7 +204,7 @@ internal NVMe.
 For a repository named `OWNER/talos-asahi`, the immutable release tag is:
 
 ```text
-ghcr.io/OWNER/talos-asahi/installer:v1.13.9-asahi.7
+ghcr.io/OWNER/talos-asahi/installer:v1.13.9-asahi.8
 ```
 
 Every kernel flavor also has a `-longhorn` installer variant. It contains the
@@ -212,9 +212,9 @@ same patched kernel and installer, plus the Talos `iscsi-tools` and
 `util-linux-tools` system extensions required by Longhorn:
 
 ```text
-ghcr.io/OWNER/talos-asahi/installer:v1.13.9-asahi.7-longhorn
-ghcr.io/OWNER/talos-asahi/installer:v1.13.9-asahi.7-mainline-longhorn
-ghcr.io/OWNER/talos-asahi/installer:v1.13.9-asahi.7-mainline-4k-longhorn
+ghcr.io/OWNER/talos-asahi/installer:v1.13.9-asahi.8-longhorn
+ghcr.io/OWNER/talos-asahi/installer:v1.13.9-asahi.8-mainline-longhorn
+ghcr.io/OWNER/talos-asahi/installer:v1.13.9-asahi.8-mainline-4k-longhorn
 ```
 
 Choose the Longhorn variant only when those extensions are required. Its ESP
@@ -229,7 +229,7 @@ After the first ESP-based installation is working, upgrade a node with:
 NODE_IP=192.0.2.10
 talosctl upgrade \
   --nodes "${NODE_IP}" \
-  --image ghcr.io/OWNER/talos-asahi/installer:v1.13.9-asahi.7 \
+  --image ghcr.io/OWNER/talos-asahi/installer:v1.13.9-asahi.8 \
   --reboot-mode=powercycle
 ```
 
@@ -403,7 +403,7 @@ images, moves `latest`, or creates a release tag automatically.
 
 For a release, update `versions.env`, make sure the patches still apply, bump
 `BUILD_REVISION` when appropriate, and push the exact computed tag. For the
-current pins that tag is `v1.13.9-asahi.7`.
+current pins that tag is `v1.13.9-asahi.8`.
 
 ## Local validation and build
 

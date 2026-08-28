@@ -100,8 +100,9 @@ docker run --rm \
   -v "${verify_root}:/work" \
   "${verify_tools_image}" \
   -ceu "
+    cp /out/${LONGHORN_BOOT_UKI} /work/longhorn.efi
     objcopy --dump-section .initrd=/work/longhorn-initramfs.zst \
-      /out/${LONGHORN_BOOT_UKI}
+      /work/longhorn.efi
     zstd --decompress --stdout /work/longhorn-initramfs.zst \
       >/work/longhorn-initramfs
   "
