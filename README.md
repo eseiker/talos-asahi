@@ -137,28 +137,21 @@ UUID and store it in META key `UUIDOverride` (`0x0f`):
 NODE=192.0.2.10
 MACHINE_UUID="$(uuidgen | tr '[:upper:]' '[:lower:]')"
 
-talosctl \
+talosctl meta write 0x0f "${MACHINE_UUID}" \
   --nodes "${NODE}" \
   --endpoints "${NODE}" \
-  --insecure \
-  meta write 0x0f "${MACHINE_UUID}"
-
-talosctl \
-  --nodes "${NODE}" \
-  --endpoints "${NODE}" \
-  --insecure \
-  reboot
+  --insecure
 ```
 
-Wait for the maintenance API to return, then verify both the stored key and
-the reported system UUID before enrolling the machine in Omni or applying its
-machine configuration:
+The META write is flushed to disk and updates the live system information; no
+reboot is required. Verify both the stored key and the reported system UUID
+before enrolling the machine in Omni or applying its machine configuration:
 
 ```sh
-talosctl --nodes "${NODE}" --endpoints "${NODE}" --insecure \
-  get metakeys 0x0f -o yaml
-talosctl --nodes "${NODE}" --endpoints "${NODE}" --insecure \
-  get systeminformation -o yaml
+talosctl get metakeys 0x0f -o yaml \
+  --nodes "${NODE}" --endpoints "${NODE}" --insecure
+talosctl get systeminformation -o yaml \
+  --nodes "${NODE}" --endpoints "${NODE}" --insecure
 ```
 
 Do not generate another value on a retry or reinstall when key `0x0f` already
