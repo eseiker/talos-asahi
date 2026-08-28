@@ -35,7 +35,7 @@ fi
 
 bundle_contents="$(unzip -Z1 "${out_dir}/${BOOT_BUNDLE}" | LC_ALL=C sort)"
 expected_contents="$(printf '%s\n' \
-  EFI/BOOT/BOOTAA64.EFI \
+  EFI/BOOT/BOOTAA64.efi \
   "EFI/Linux/${BOOT_UKI}" \
   "EFI/Linux/${PREPARE_UKI}" \
   loader/loader.conf | LC_ALL=C sort)"
@@ -58,7 +58,7 @@ cleanup() {
 }
 trap cleanup EXIT
 unzip -q "${out_dir}/${BOOT_BUNDLE}" -d "${verify_root}"
-cmp "${out_dir}/BOOTAA64.efi" "${verify_root}/EFI/BOOT/BOOTAA64.EFI"
+cmp "${out_dir}/BOOTAA64.efi" "${verify_root}/EFI/BOOT/BOOTAA64.efi"
 cmp "${out_dir}/${BOOT_UKI}" "${verify_root}/EFI/Linux/${BOOT_UKI}"
 cmp "${out_dir}/${PREPARE_UKI}" "${verify_root}/EFI/Linux/${PREPARE_UKI}"
 cmp "${out_dir}/loader.conf" "${verify_root}/loader/loader.conf"

@@ -81,7 +81,7 @@ fi
 
 mount -t vfat -o rw "$esp_device" /esp || emergency 'unable to mount the Asahi ESP read-write'
 [ -s "/esp/EFI/Linux/$target_uki" ] || emergency "target UKI is missing: EFI/Linux/$target_uki"
-[ -s /esp/EFI/BOOT/BOOTAA64.EFI ] || emergency 'systemd-boot is missing: EFI/BOOT/BOOTAA64.EFI'
+[ -s /esp/EFI/BOOT/BOOTAA64.efi ] || emergency 'systemd-boot is missing: EFI/BOOT/BOOTAA64.efi'
 
 mkdir -p /esp/loader
 loader_tmp=/esp/loader/loader.conf.prepare

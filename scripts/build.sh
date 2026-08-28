@@ -165,7 +165,7 @@ EOF
 
 bundle_root="${build_root}/esp"
 mkdir -p "${bundle_root}/EFI/BOOT" "${bundle_root}/EFI/Linux" "${bundle_root}/loader"
-cp "${OUT_DIR}/BOOTAA64.efi" "${bundle_root}/EFI/BOOT/BOOTAA64.EFI"
+cp "${OUT_DIR}/BOOTAA64.efi" "${bundle_root}/EFI/BOOT/BOOTAA64.efi"
 cp "${OUT_DIR}/${PREPARE_UKI}" "${bundle_root}/EFI/Linux/${PREPARE_UKI}"
 cp "${OUT_DIR}/${BOOT_UKI}" "${bundle_root}/EFI/Linux/${BOOT_UKI}"
 cp "${OUT_DIR}/loader.conf" "${bundle_root}/loader/loader.conf"
