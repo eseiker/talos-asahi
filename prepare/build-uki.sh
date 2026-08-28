@@ -34,21 +34,22 @@ trap cleanup EXIT
 
 cmdline="talos.platform=metal console=ttyAMA0 console=tty0 consoleblank=0 nvme_core.io_timeout=4294967295 rdinit=/init talos_asahi.target=${target_uki}"
 printf '%s\000' "$cmdline" >"$work_dir/cmdline"
-cat >"$work_dir/os-release" <<EOF
-ID=talos-asahi-prepare
-NAME="Talos Asahi Prepare"
-PRETTY_NAME="Talos Asahi one-time disk preparation"
-EOF
+
+# Keep the source UKI's .osrel section byte-for-byte.  Replacing it with a
+# shorter os-release makes GNU objcopy pad the fixed-size PE section with NUL
+# bytes.  systemd-boot's UKI discovery rejects that malformed os-release, so
+# the prepare image silently disappears from the boot menu.
+objcopy --dump-section .osrel="$work_dir/source-osrel" "$source_uki"
 
 cp "$source_uki" "$prepare_uki"
 objcopy \
   --update-section .initrd=/prepare-initramfs.zst \
   --update-section .cmdline="$work_dir/cmdline" \
-  --update-section .osrel="$work_dir/os-release" \
   "$prepare_uki"
 
 objcopy --dump-section .cmdline="$work_dir/verify-cmdline" "$prepare_uki"
 objcopy --dump-section .initrd="$work_dir/verify-initrd" "$prepare_uki"
+objcopy --dump-section .osrel="$work_dir/verify-osrel" "$prepare_uki"
 
 verify_padded_section() {
   expected="$1"
@@ -64,5 +65,6 @@ verify_padded_section() {
 
 verify_padded_section "$work_dir/cmdline" "$work_dir/verify-cmdline"
 verify_padded_section /prepare-initramfs.zst "$work_dir/verify-initrd"
+cmp "$work_dir/source-osrel" "$work_dir/verify-osrel"
 
 printf 'created prepare UKI %s for %s\n' "$prepare_uki" "$target_uki"

@@ -90,7 +90,7 @@ release overlay. The installer prints the new EFI PARTUUID; use that value
 below:
 
 ```sh
-BUNDLE="$HOME/Downloads/talos-asahi-v1.13.9-asahi.9-esp.zip"
+BUNDLE="$HOME/Downloads/talos-asahi-v1.13.9-asahi.10-esp.zip"
 ESP_PARTUUID="replace-with-the-EFI-PARTUUID-shown-by-the-installer"
 
 diskutil mount "${ESP_PARTUUID}"
@@ -118,6 +118,11 @@ options appear.
 The first UEFI boot selects `Talos-prepare.efi`. It identifies the correct ESP
 from Asahi's device-tree PARTUUID, verifies that it is on NVMe, and performs the
 following one-time transaction:
+
+This must be a complete firmware boot. A normal `talosctl reboot` may use
+kexec and therefore skip U-Boot and systemd-boot entirely; use a cold boot or
+`talosctl reboot --mode powercycle` when retrying preparation from a running
+configured node.
 
 1. Reject a GPT with inconsistent headers, overlapping partitions, or other
    verification failures.
