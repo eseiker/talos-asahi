@@ -129,6 +129,7 @@ jobs:
           path: |
             _out/talos-asahi-*-esp.zip
             _out/installer-arm64.tar
+            _out/installer-longhorn-arm64.tar
             _out/SHA256SUMS
             _out/build.env
           if-no-files-found: error

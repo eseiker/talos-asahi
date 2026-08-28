@@ -47,9 +47,9 @@ Download the ZIP for the desired kernel flavor from the matching GitHub
 Release:
 
 ```text
-talos-asahi-v1.13.9-asahi.4-esp.zip
-talos-asahi-v1.13.9-asahi.4-mainline-esp.zip
-talos-asahi-v1.13.9-asahi.4-mainline-4k-esp.zip
+talos-asahi-v1.13.9-asahi.5-esp.zip
+talos-asahi-v1.13.9-asahi.5-mainline-esp.zip
+talos-asahi-v1.13.9-asahi.5-mainline-4k-esp.zip
 ```
 
 The Asahi flavor is the default. Both mainline flavors are experimental and
@@ -85,7 +85,7 @@ release overlay. The installer prints the new EFI PARTUUID; use that value
 below:
 
 ```sh
-BUNDLE="$HOME/Downloads/talos-asahi-v1.13.9-asahi.4-esp.zip"
+BUNDLE="$HOME/Downloads/talos-asahi-v1.13.9-asahi.5-esp.zip"
 ESP_PARTUUID="replace-with-the-EFI-PARTUUID-shown-by-the-installer"
 
 diskutil mount "${ESP_PARTUUID}"
@@ -174,13 +174,13 @@ repository's installer image, and disable whole-disk wiping:
 machine:
   install:
     disk: /dev/nvme0n1
-    image: ghcr.io/OWNER/talos-asahi/installer:v1.13.9-asahi.4
+    image: ghcr.io/OWNER/talos-asahi/installer:v1.13.9-asahi.5
     wipe: false
 ```
 
 Keep the installer image flavor matched to the ESP bundle. Use
-`:v1.13.9-asahi.4-mainline` with the mainline 16K ZIP and
-`:v1.13.9-asahi.4-mainline-4k` with the mainline 4K ZIP. Mixing them causes
+`:v1.13.9-asahi.5-mainline` with the mainline 16K ZIP and
+`:v1.13.9-asahi.5-mainline-4k` with the mainline 4K ZIP. Mixing them causes
 the installer to replace the selected test UKI with a different kernel flavor.
 
 Confirm the actual NVMe device name on the target rather than copying the
@@ -204,8 +204,22 @@ internal NVMe.
 For a repository named `OWNER/talos-asahi`, the immutable release tag is:
 
 ```text
-ghcr.io/OWNER/talos-asahi/installer:v1.13.9-asahi.4
+ghcr.io/OWNER/talos-asahi/installer:v1.13.9-asahi.5
 ```
+
+Every kernel flavor also has a `-longhorn` installer variant. It contains the
+same patched kernel and installer, plus the Talos `iscsi-tools` and
+`util-linux-tools` system extensions required by Longhorn:
+
+```text
+ghcr.io/OWNER/talos-asahi/installer:v1.13.9-asahi.5-longhorn
+ghcr.io/OWNER/talos-asahi/installer:v1.13.9-asahi.5-mainline-longhorn
+ghcr.io/OWNER/talos-asahi/installer:v1.13.9-asahi.5-mainline-4k-longhorn
+```
+
+Choose the Longhorn variant only when those extensions are required. The ESP
+bundle is shared with the corresponding regular installer because the kernel
+flavor and Apple boot chain are unchanged.
 
 After the first ESP-based installation is working, upgrade a node with:
 
@@ -213,7 +227,7 @@ After the first ESP-based installation is working, upgrade a node with:
 NODE_IP=192.0.2.10
 talosctl upgrade \
   --nodes "${NODE_IP}" \
-  --image ghcr.io/OWNER/talos-asahi/installer:v1.13.9-asahi.4 \
+  --image ghcr.io/OWNER/talos-asahi/installer:v1.13.9-asahi.5 \
   --reboot-mode=powercycle
 ```
 
@@ -311,15 +325,24 @@ images:
 
 ```text
 ghcr.io/OWNER/talos-asahi/installer:<release>
+ghcr.io/OWNER/talos-asahi/installer:<release>-longhorn
 ghcr.io/OWNER/talos-asahi/installer:<release>-mainline
+ghcr.io/OWNER/talos-asahi/installer:<release>-mainline-longhorn
 ghcr.io/OWNER/talos-asahi/installer:<release>-mainline-4k
+ghcr.io/OWNER/talos-asahi/installer:<release>-mainline-4k-longhorn
 ghcr.io/OWNER/talos-asahi/kernel:<asahi-kernel-release>
 ghcr.io/OWNER/talos-asahi/kernel:<mainline-kernel-release>
 ghcr.io/OWNER/talos-asahi/kernel:<mainline-4k-kernel-release>
 ```
 
-Only the Asahi job moves `installer:latest`; neither mainline build can replace
-that tag.
+Only the regular Asahi installer moves `installer:latest`; Longhorn and
+mainline variants cannot replace that tag.
+
+Each flavor job reuses its already-built custom kernel and imager to generate
+both installer archives. CI inspects the Longhorn initramfs for both extension
+metadata records before publishing. The extension image references are pinned
+in `versions.env`, and the upstream update automation refreshes them from the
+matching Talos Image Factory catalog.
 
 CI imports and exports the kernel's full BuildKit layer cache through
 `ghcr.io/OWNER/talos-asahi/build-cache:kernel-arm64-asahi`. The cache is
@@ -359,15 +382,16 @@ succeed. It contains separate Asahi, mainline 16K, and mainline 4K ESP ZIPs
 plus one combined checksum file. Each ZIP contains systemd-boot, a matching
 one-time prepare UKI, the final Talos UKI, and `loader.conf` in their
 ESP-relative paths. Individual files are not published because the ZIP is the
-atomic installation overlay. The installer OCI archives and `build.env`
-metadata remain available only in the short-lived Actions artifacts. The
-repository itself does not track a binary output directory.
+atomic installation overlay. The regular and Longhorn installer OCI archives
+and `build.env` metadata remain available only in the short-lived Actions
+artifacts. The repository itself does not track a binary output directory.
 
 `Track upstream Talos releases` runs daily and can also be dispatched manually.
 When a newer stable Talos release appears, it resolves the exact Talos commit,
 extracts the matching pkgs commit from that release's `Makefile`, updates the
-mainline kernel version from the pinned pkgs `Pkgfile`, resets
-`BUILD_REVISION=1`, and pushes an `automation/talos-vX.Y.Z` branch. It then
+mainline kernel version from the pinned pkgs `Pkgfile`, refreshes the Longhorn
+extension references from Image Factory, resets `BUILD_REVISION=1`, and pushes
+an `automation/talos-vX.Y.Z` branch. It then
 dispatches artifact-only Asahi, mainline 16K, and mainline 4K builds. The
 workflow also tries to open a draft pull request; repositories which keep
 GitHub Actions pull request creation disabled still get the update branch and
@@ -376,7 +400,7 @@ images, moves `latest`, or creates a release tag automatically.
 
 For a release, update `versions.env`, make sure the patches still apply, bump
 `BUILD_REVISION` when appropriate, and push the exact computed tag. For the
-current pins that tag is `v1.13.9-asahi.4`.
+current pins that tag is `v1.13.9-asahi.5`.
 
 ## Local validation and build
 

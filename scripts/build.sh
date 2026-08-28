@@ -67,16 +67,52 @@ printf 'building patched Talos imager %s\n' "${imager_image}"
   PKG_KERNEL_ARM64="${kernel_image}" \
   TARGET_ARGS="--tag=${imager_image} --output=type=docker"
 
+printf 'building prepare and installer verification tools\n'
+docker buildx build --load \
+  --platform linux/arm64 \
+  --file "${root}/prepare/Dockerfile" \
+  --target tools \
+  --tag "${prepare_tools_image}" \
+  "${root}/prepare"
+
 printf 'generating generic installer and boot bundle\n'
+standard_installer_out="${OUT_DIR}/installer-standard"
+longhorn_installer_out="${OUT_DIR}/installer-longhorn"
+rm -rf "${standard_installer_out}" "${longhorn_installer_out}"
+mkdir -p "${standard_installer_out}" "${longhorn_installer_out}"
+
 docker run --rm --network=host \
   --user "$(id -u):$(id -g)" \
-  -v "${OUT_DIR}:/out" \
+  -v "${standard_installer_out}:/out" \
   "${imager_image}" installer --arch arm64 \
   --base-installer-image "${installer_base_image}" \
   --insecure
 
+mv "${standard_installer_out}/installer-arm64.tar" "${OUT_DIR}/installer-arm64.tar"
+rmdir "${standard_installer_out}"
+
 "${root}/scripts/verify-installer-image.sh" \
   "${OUT_DIR}/installer-arm64.tar" "${installer_base_image}"
+
+printf 'generating Longhorn installer with Talos system extensions\n'
+docker run --rm --network=host \
+  --user "$(id -u):$(id -g)" \
+  -v "${longhorn_installer_out}:/out" \
+  "${imager_image}" installer --arch arm64 \
+  --base-installer-image "${installer_base_image}" \
+  --system-extension-image "${ISCSI_TOOLS_IMAGE}" \
+  --system-extension-image "${UTIL_LINUX_TOOLS_IMAGE}" \
+  --insecure
+
+mv "${longhorn_installer_out}/installer-arm64.tar" \
+  "${OUT_DIR}/installer-longhorn-arm64.tar"
+rmdir "${longhorn_installer_out}"
+
+VERIFY_TOOLS_IMAGE="${prepare_tools_image}" \
+  "${root}/scripts/verify-installer-image.sh" \
+  "${OUT_DIR}/installer-longhorn-arm64.tar" "${installer_base_image}" \
+  'name: iscsi-tools' \
+  'name: util-linux-tools'
 
 docker run --rm \
   --user "$(id -u):$(id -g)" \
@@ -96,12 +132,6 @@ docker cp "${container_id}:/usr/install/arm64/systemd-boot.efi" "${OUT_DIR}/BOOT
 docker rm "${container_id}" >/dev/null
 
 printf 'building one-time prepare UKI\n'
-docker buildx build --load \
-  --platform linux/arm64 \
-  --file "${root}/prepare/Dockerfile" \
-  --target tools \
-  --tag "${prepare_tools_image}" \
-  "${root}/prepare"
 docker run --rm \
   --user "$(id -u):$(id -g)" \
   -v "${OUT_DIR}:/out" \
@@ -122,6 +152,9 @@ KERNEL_VERSION=${KERNEL_VERSION}
 KERNEL_PAGE_SIZE=${KERNEL_PAGE_SIZE}
 RELEASE_TAG=${RELEASE_TAG}
 ARTIFACT_TAG=${ARTIFACT_TAG}
+LONGHORN_ARTIFACT_TAG=${ARTIFACT_TAG}-longhorn
+ISCSI_TOOLS_IMAGE=${ISCSI_TOOLS_IMAGE}
+UTIL_LINUX_TOOLS_IMAGE=${UTIL_LINUX_TOOLS_IMAGE}
 BOOT_UKI=${BOOT_UKI}
 PREPARE_UKI=${PREPARE_UKI}
 BOOT_BUNDLE=${BOOT_BUNDLE}

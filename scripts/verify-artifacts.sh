@@ -13,6 +13,7 @@ required=(
   "${BOOT_UKI}"
   "${PREPARE_UKI}"
   installer-arm64.tar
+  installer-longhorn-arm64.tar
   loader.conf
   SHA256SUMS
   build.env

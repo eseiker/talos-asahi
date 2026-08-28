@@ -30,10 +30,18 @@ if [[ "${PUBLISH_LATEST}" == "true" && "${KERNEL_FLAVOR}" == "asahi" ]]; then
   docker push "${TARGET_REPOSITORY}/installer:latest"
 fi
 
+# The Longhorn archive uses the same patched kernel and installer binary, but
+# its initramfs also contains the iSCSI and util-linux system extensions.
+docker load --input "${OUT_DIR}/installer-longhorn-arm64.tar"
+longhorn_installer_ref="${TARGET_REPOSITORY}/installer:${LONGHORN_ARTIFACT_TAG}"
+docker tag "${loaded_installer}" "${longhorn_installer_ref}"
+docker push "${longhorn_installer_ref}"
+
 # Publish the kernel as a traceable, optional input for later debugging.
 kernel_ref="${TARGET_REPOSITORY}/kernel:${KERNEL_IMAGE_TAG}"
 docker tag "${LOCAL_KERNEL_IMAGE}" "${kernel_ref}"
 docker push "${kernel_ref}"
 
 printf 'published %s\n' "${installer_ref}"
+printf 'published %s\n' "${longhorn_installer_ref}"
 printf 'published %s\n' "${kernel_ref}"

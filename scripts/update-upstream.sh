@@ -8,7 +8,7 @@ versions_file="${VERSIONS_FILE:-${root}/versions.env}"
 # shellcheck disable=SC1090
 source "${versions_file}"
 
-for command in gh awk sed base64; do
+for command in gh curl jq awk sed base64; do
   if ! command -v "${command}" >/dev/null 2>&1; then
     printf 'required command is missing: %s\n' "${command}" >&2
     exit 1
@@ -89,6 +89,22 @@ if [[ -z "${mainline_kernel_version}" ]]; then
   exit 1
 fi
 
+extensions_catalog="$(
+  curl --fail --silent --show-error --location \
+    "https://factory.talos.dev/version/${target_version#v}/extensions/official"
+)"
+
+extension_image() {
+  local extension_name="$1"
+
+  jq --exit-status --raw-output --arg name "${extension_name}" \
+    '.[] | select(.name == $name) | .ref + "@" + .digest' \
+    <<<"${extensions_catalog}"
+}
+
+iscsi_tools_image="$(extension_image siderolabs/iscsi-tools)"
+util_linux_tools_image="$(extension_image siderolabs/util-linux-tools)"
+
 temporary_file="$(mktemp "${versions_file}.XXXXXX")"
 trap 'rm -f "${temporary_file}"' EXIT
 
@@ -97,11 +113,15 @@ awk \
   -v talos_sha="${talos_sha}" \
   -v pkgs_sha="${pkgs_sha}" \
   -v mainline_kernel_version="${mainline_kernel_version}" \
+  -v iscsi_tools_image="${iscsi_tools_image}" \
+  -v util_linux_tools_image="${util_linux_tools_image}" \
   '
     /^TALOS_VERSION=/ { print "TALOS_VERSION=" talos_version; next }
     /^TALOS_SHA=/ { print "TALOS_SHA=" talos_sha; next }
     /^PKGS_SHA=/ { print "PKGS_SHA=" pkgs_sha; next }
     /^MAINLINE_KERNEL_VERSION=/ { print "MAINLINE_KERNEL_VERSION=" mainline_kernel_version; next }
+    /^ISCSI_TOOLS_IMAGE=/ { print "ISCSI_TOOLS_IMAGE=" iscsi_tools_image; next }
+    /^UTIL_LINUX_TOOLS_IMAGE=/ { print "UTIL_LINUX_TOOLS_IMAGE=" util_linux_tools_image; next }
     /^BUILD_REVISION=/ { print "BUILD_REVISION=1"; next }
     { print }
   ' "${versions_file}" >"${temporary_file}"
@@ -113,6 +133,9 @@ emit_output updated true
 emit_output talos_sha "${talos_sha}"
 emit_output pkgs_sha "${pkgs_sha}"
 emit_output mainline_kernel_version "${mainline_kernel_version}"
+emit_output iscsi_tools_image "${iscsi_tools_image}"
+emit_output util_linux_tools_image "${util_linux_tools_image}"
 
-printf 'updated pins: Talos %s (%s), pkgs %s, Linux %s\n' \
-  "${target_version}" "${talos_sha}" "${pkgs_sha}" "${mainline_kernel_version}"
+printf 'updated pins: Talos %s (%s), pkgs %s, Linux %s, Longhorn extensions %s and %s\n' \
+  "${target_version}" "${talos_sha}" "${pkgs_sha}" "${mainline_kernel_version}" \
+  "${iscsi_tools_image}" "${util_linux_tools_image}"
