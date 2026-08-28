@@ -220,19 +220,8 @@ ghcr.io/OWNER/talos-asahi/installer:v1.13.9-asahi.7-mainline-4k-longhorn
 Choose the Longhorn variant only when those extensions are required. Its ESP
 bundle has the same Apple boot chain and prepare flow, but its final Talos UKI
 is different because the extensions are embedded in the initramfs.
-
-GitHub Releases also publish the three Longhorn installer OCI archives for
-offline use:
-
-```text
-talos-asahi-v1.13.9-asahi.7-longhorn-installer-arm64.tar
-talos-asahi-v1.13.9-asahi.7-mainline-longhorn-installer-arm64.tar
-talos-asahi-v1.13.9-asahi.7-mainline-4k-longhorn-installer-arm64.tar
-```
-
-They are installer image archives, not ESP overlays. Use the matching
-`*-longhorn-esp.zip` for initial boot preparation. The six ESP ZIPs and three
-Longhorn installer archives are covered by the release `SHA256SUMS` file.
+GitHub Releases contain only the six ESP ZIPs and their `SHA256SUMS`; installer
+OCI images are distributed through GHCR instead of duplicated as tar archives.
 
 After the first ESP-based installation is working, upgrade a node with:
 

@@ -122,16 +122,13 @@ jobs:
           PUBLISH_LATEST: ${{ env.KERNEL_FLAVOR == 'asahi' && (github.event_name == 'push' || inputs.publish_latest) }}
         run: ./scripts/publish.sh
 
-      - name: Upload boot bundles and installer archives
+      - name: Upload boot bundles
         uses: actions/upload-artifact@v4
         with:
           name: talos-asahi-${{ env.ARTIFACT_TAG }}
           path: |
             _out/talos-asahi-*-esp.zip
-            _out/installer-arm64.tar
-            _out/installer-longhorn-arm64.tar
             _out/SHA256SUMS
-            _out/build.env
           if-no-files-found: error
           retention-days: 30
 
@@ -157,9 +154,6 @@ jobs:
           asahi_longhorn_bundle="_release-input/talos-asahi-${GITHUB_REF_NAME}/talos-asahi-${GITHUB_REF_NAME}-longhorn-esp.zip"
           mainline_longhorn_bundle="_release-input/talos-asahi-${GITHUB_REF_NAME}-mainline/talos-asahi-${GITHUB_REF_NAME}-mainline-longhorn-esp.zip"
           mainline_4k_longhorn_bundle="_release-input/talos-asahi-${GITHUB_REF_NAME}-mainline-4k/talos-asahi-${GITHUB_REF_NAME}-mainline-4k-longhorn-esp.zip"
-          asahi_longhorn="_release-input/talos-asahi-${GITHUB_REF_NAME}/installer-longhorn-arm64.tar"
-          mainline_longhorn="_release-input/talos-asahi-${GITHUB_REF_NAME}-mainline/installer-longhorn-arm64.tar"
-          mainline_4k_longhorn="_release-input/talos-asahi-${GITHUB_REF_NAME}-mainline-4k/installer-longhorn-arm64.tar"
 
           for asset in \
             "${asahi_bundle}" \
@@ -167,10 +161,7 @@ jobs:
             "${mainline_4k_bundle}" \
             "${asahi_longhorn_bundle}" \
             "${mainline_longhorn_bundle}" \
-            "${mainline_4k_longhorn_bundle}" \
-            "${asahi_longhorn}" \
-            "${mainline_longhorn}" \
-            "${mainline_4k_longhorn}"; do
+            "${mainline_4k_longhorn_bundle}"; do
             if [[ ! -f "${asset}" ]]; then
               echo "missing release asset ${asset}" >&2
               exit 1
@@ -186,18 +177,9 @@ jobs:
             "${mainline_longhorn_bundle}" \
             "${mainline_4k_longhorn_bundle}" \
             _release/
-          cp "${asahi_longhorn}" \
-            "_release/talos-asahi-${GITHUB_REF_NAME}-longhorn-installer-arm64.tar"
-          cp "${mainline_longhorn}" \
-            "_release/talos-asahi-${GITHUB_REF_NAME}-mainline-longhorn-installer-arm64.tar"
-          cp "${mainline_4k_longhorn}" \
-            "_release/talos-asahi-${GITHUB_REF_NAME}-mainline-4k-longhorn-installer-arm64.tar"
           (
             cd _release
-            sha256sum \
-              talos-asahi-*-esp.zip \
-              talos-asahi-*-longhorn-installer-arm64.tar \
-              >SHA256SUMS
+            sha256sum talos-asahi-*-esp.zip >SHA256SUMS
           )
 
       - name: Publish GitHub release assets
@@ -210,5 +192,4 @@ jobs:
             --title "Talos Asahi ${GITHUB_REF_NAME}" \
             --generate-notes \
             _release/talos-asahi-*-esp.zip \
-            _release/talos-asahi-*-longhorn-installer-arm64.tar \
             _release/SHA256SUMS
