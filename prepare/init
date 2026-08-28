@@ -21,7 +21,7 @@ mount -t proc proc /proc || emergency 'unable to mount procfs'
 mount -t sysfs sysfs /sys || emergency 'unable to mount sysfs'
 mount -t tmpfs tmpfs /run || emergency 'unable to mount tmpfs'
 
-log 'starting one-time Talos ESP and META preparation'
+log 'starting one-time Talos ESP, META, and STATE preparation'
 
 target_uki=''
 # Kernel arguments are deliberately parsed as whitespace-separated words.

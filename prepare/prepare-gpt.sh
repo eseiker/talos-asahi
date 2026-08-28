@@ -8,7 +8,9 @@ export PATH=/usr/sbin:/usr/bin:/sbin:/bin
 EFI_TYPE_GUID=C12A7328-F81F-11D2-BA4B-00A0C93EC93B
 LINUX_TYPE_GUID=0FC63DAF-8483-4772-8E79-3D69D8477DE4
 META_BYTES=1048576
+STATE_BYTES=104857600
 PENDING_LABEL=TALOS_META_PENDING
+STATE_PENDING_LABEL=TALOS_STATE_PENDING
 META_UUID_WRITER=/usr/libexec/talos-asahi/meta-uuid
 
 log() {
@@ -55,6 +57,7 @@ esac
   fail "1 MiB is not divisible by logical sector size $sector_size"
 
 meta_sectors=$((META_BYTES / sector_size))
+state_sectors=$((STATE_BYTES / sector_size))
 
 partition_numbers() {
   sgdisk --print "$disk" | awk '$1 ~ /^[0-9]+$/ { print $1 }'
@@ -127,6 +130,37 @@ first_unused_number() {
   fail 'GPT has no unused partition entries'
 }
 
+verify_gpt_integrity() {
+  verify_output="$(sgdisk --verify "$disk" 2>&1)" || \
+    fail "unable to verify GPT: $verify_output"
+
+  case "$verify_output" in
+    *'Identified 0 problems!'*|*'No problems found.'*) ;;
+    *) fail "GPT verification failed: $verify_output" ;;
+  esac
+}
+
+sort_partition_table() {
+  log 'sorting GPT entries into physical LBA order'
+  sgdisk --sort "$disk"
+  sync
+}
+
+verify_partition_order() {
+  previous_last=''
+
+  for number in $(partition_numbers); do
+    first="$(partition_first "$number")"
+    last="$(partition_last "$number")"
+
+    if [ -n "$previous_last" ] && [ "$first" -le "$previous_last" ]; then
+      fail "GPT partition $number is overlapping or out of physical order"
+    fi
+
+    previous_last="$last"
+  done
+}
+
 verify_meta_geometry() {
   number="$1"
   first="$(partition_first "$number")"
@@ -144,20 +178,43 @@ verify_meta_geometry() {
     fail "partition $number is not the first partition after the Asahi ESP"
 }
 
-zero_partition_extent() {
+verify_state_geometry() {
   number="$1"
   first="$(partition_first "$number")"
+  last="$(partition_last "$number")"
+  size=$((last - first + 1))
 
-  log "zero-filling pending META extent at sector $first"
+  [ "$size" -eq "$state_sectors" ] || \
+    fail "partition $number is not exactly 100 MiB"
+  [ "$first" -gt "$meta_last" ] || \
+    fail "partition $number is not physically after META"
+
+  nearest="$(nearest_partition_after "$meta_last")"
+  nearest_number="${nearest%%:*}"
+  [ "$nearest_number" = "$number" ] || \
+    fail "partition $number is not the first partition after META"
+}
+
+zero_partition_extent() {
+  number="$1"
+  byte_count="$2"
+  description="$3"
+  first="$(partition_first "$number")"
+  sectors=$((byte_count / sector_size))
+
+  log "zero-filling pending $description extent at sector $first"
   dd if=/dev/zero of="$disk" bs="$sector_size" seek="$first" \
-    count="$meta_sectors" conv=notrunc,fsync status=none
+    count="$sectors" conv=notrunc,fsync status=none
   sync
 
-  expected_hash="$(dd if=/dev/zero bs="$META_BYTES" count=1 status=none | sha256sum | awk '{ print $1 }')"
+  expected_hash="$(dd if=/dev/zero bs="$sector_size" count="$sectors" status=none | sha256sum | awk '{ print $1 }')"
   actual_hash="$(dd if="$disk" bs="$sector_size" skip="$first" \
-    count="$meta_sectors" status=none | sha256sum | awk '{ print $1 }')"
-  [ "$actual_hash" = "$expected_hash" ] || fail 'META zero-fill verification failed'
+    count="$sectors" status=none | sha256sum | awk '{ print $1 }')"
+  [ "$actual_hash" = "$expected_hash" ] || \
+    fail "$description zero-fill verification failed"
 }
+
+verify_gpt_integrity
 
 esp_type="$(partition_type "$esp_number")"
 [ "$esp_type" = "$EFI_TYPE_GUID" ] || \
@@ -208,7 +265,7 @@ else
   verify_meta_geometry "$pending_number"
   [ "$(partition_type "$pending_number")" = "$LINUX_TYPE_GUID" ] || \
     fail "pending META partition $pending_number has the wrong GPT type"
-  zero_partition_extent "$pending_number"
+  zero_partition_extent "$pending_number" "$META_BYTES" META
 
   log 'committing GPT labels EFI and META'
   sgdisk \
@@ -230,7 +287,85 @@ fi
 verify_meta_geometry "$meta_number"
 [ "$(partition_type "$meta_number")" = "$LINUX_TYPE_GUID" ] || \
   fail 'META GPT type verification failed'
-sgdisk --verify "$disk"
+
+# Talos' live GPT allocator expects GPT entry order to match physical LBA
+# order. META can otherwise sit before RecoveryOS while using a later GPT
+# entry, causing subsequent STATE or EPHEMERAL allocations to overlap it.
+sort_partition_table
+esp_number="$(find_partition_by_name EFI)"
+meta_number="$(find_partition_by_name META)"
+[ -n "$esp_number" ] || fail 'EFI partition disappeared after GPT sort'
+[ -n "$meta_number" ] || fail 'META partition disappeared after GPT sort'
+esp_last="$(partition_last "$esp_number")"
+meta_last="$(partition_last "$meta_number")"
+verify_meta_geometry "$meta_number"
+
+state_number="$(find_partition_by_name STATE)"
+pending_state_number="$(find_partition_by_name "$STATE_PENDING_LABEL")"
+[ -z "$state_number" ] || [ -z "$pending_state_number" ] || \
+  fail "both STATE and $STATE_PENDING_LABEL partitions exist"
+
+if [ -n "$state_number" ]; then
+  log "existing STATE partition $state_number found; preserving its contents"
+  verify_state_geometry "$state_number"
+  [ "$(partition_type "$state_number")" = "$LINUX_TYPE_GUID" ] || \
+    fail "existing STATE partition $state_number has the wrong GPT type"
+else
+  if [ -z "$pending_state_number" ]; then
+    alignment_sectors="$meta_sectors"
+    state_start=$(( (meta_last + 1 + alignment_sectors - 1) / alignment_sectors * alignment_sectors ))
+    state_end=$((state_start + state_sectors - 1))
+
+    nearest="$(nearest_partition_after "$meta_last")"
+    next_start="${nearest#*:}"
+    if [ -n "$next_start" ]; then
+      [ "$state_end" -lt "$next_start" ] || \
+        fail 'there is no free aligned 100 MiB extent immediately after META'
+    else
+      last_usable="$(sgdisk --print "$disk" | \
+        sed -n 's/.*last usable sector is \([0-9][0-9]*\).*/\1/p')"
+      [ -n "$last_usable" ] || fail 'unable to determine the final usable GPT sector'
+      [ "$state_end" -le "$last_usable" ] || \
+        fail 'there is no free aligned 100 MiB extent after META'
+    fi
+
+    pending_state_number="$(first_unused_number)"
+    log "creating partition $pending_state_number as $STATE_PENDING_LABEL"
+    sgdisk \
+      --new="${pending_state_number}:${state_start}:${state_end}" \
+      --typecode="${pending_state_number}:${LINUX_TYPE_GUID}" \
+      --change-name="${pending_state_number}:${STATE_PENDING_LABEL}" \
+      "$disk"
+    sync
+  else
+    log "recovering interrupted preparation from partition $pending_state_number"
+  fi
+
+  verify_state_geometry "$pending_state_number"
+  [ "$(partition_type "$pending_state_number")" = "$LINUX_TYPE_GUID" ] || \
+    fail "pending STATE partition $pending_state_number has the wrong GPT type"
+  zero_partition_extent "$pending_state_number" "$STATE_BYTES" STATE
+
+  log 'committing GPT label STATE'
+  sgdisk --change-name="${pending_state_number}:STATE" "$disk"
+  sync
+fi
+
+sort_partition_table
+esp_number="$(find_partition_by_name EFI)"
+meta_number="$(find_partition_by_name META)"
+state_number="$(find_partition_by_name STATE)"
+[ -n "$esp_number" ] || fail 'EFI partition disappeared after final GPT sort'
+[ -n "$meta_number" ] || fail 'META partition disappeared after final GPT sort'
+[ -n "$state_number" ] || fail 'STATE partition disappeared after final GPT sort'
+esp_last="$(partition_last "$esp_number")"
+meta_last="$(partition_last "$meta_number")"
+verify_meta_geometry "$meta_number"
+verify_state_geometry "$state_number"
+[ "$(partition_type "$state_number")" = "$LINUX_TYPE_GUID" ] || \
+  fail 'STATE GPT type verification failed'
+verify_partition_order
+verify_gpt_integrity
 
 [ -x "$META_UUID_WRITER" ] || fail "META UUID writer is missing: $META_UUID_WRITER"
 meta_first="$(partition_first "$meta_number")"
@@ -240,4 +375,4 @@ if ! uuid_result="$($META_UUID_WRITER "$disk" "$meta_offset")"; then
 fi
 log "$uuid_result"
 
-log "GPT and META preparation complete: ESP=$esp_number META=$meta_number"
+log "GPT preparation complete: ESP=$esp_number META=$meta_number STATE=$state_number"

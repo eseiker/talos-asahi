@@ -47,12 +47,12 @@ Download the ZIP for the desired kernel flavor from the matching GitHub
 Release:
 
 ```text
-talos-asahi-v1.13.9-asahi.8-esp.zip
-talos-asahi-v1.13.9-asahi.8-mainline-esp.zip
-talos-asahi-v1.13.9-asahi.8-mainline-4k-esp.zip
-talos-asahi-v1.13.9-asahi.8-longhorn-esp.zip
-talos-asahi-v1.13.9-asahi.8-mainline-longhorn-esp.zip
-talos-asahi-v1.13.9-asahi.8-mainline-4k-longhorn-esp.zip
+talos-asahi-v1.13.9-asahi.9-esp.zip
+talos-asahi-v1.13.9-asahi.9-mainline-esp.zip
+talos-asahi-v1.13.9-asahi.9-mainline-4k-esp.zip
+talos-asahi-v1.13.9-asahi.9-longhorn-esp.zip
+talos-asahi-v1.13.9-asahi.9-mainline-longhorn-esp.zip
+talos-asahi-v1.13.9-asahi.9-mainline-4k-longhorn-esp.zip
 ```
 
 The Asahi flavor is the default. Both mainline flavors are experimental and
@@ -90,7 +90,7 @@ release overlay. The installer prints the new EFI PARTUUID; use that value
 below:
 
 ```sh
-BUNDLE="$HOME/Downloads/talos-asahi-v1.13.9-asahi.8-esp.zip"
+BUNDLE="$HOME/Downloads/talos-asahi-v1.13.9-asahi.9-esp.zip"
 ESP_PARTUUID="replace-with-the-EFI-PARTUUID-shown-by-the-installer"
 
 diskutil mount "${ESP_PARTUUID}"
@@ -113,26 +113,35 @@ and One True RecoveryOS (1TR) stage 2 instructions exactly. In particular,
 start the fully powered-off Mac by holding the power button until startup
 options appear.
 
-### 3. Let the preparation UKI create META
+### 3. Let the preparation UKI create META and STATE
 
 The first UEFI boot selects `Talos-prepare.efi`. It identifies the correct ESP
 from Asahi's device-tree PARTUUID, verifies that it is on NVMe, and performs the
 following one-time transaction:
 
-1. Create an aligned, exactly 1 MiB Linux GPT partition in the free extent
+1. Reject a GPT with inconsistent headers, overlapping partitions, or other
+   verification failures.
+2. Create an aligned, exactly 1 MiB Linux GPT partition in the free extent
    immediately after the ESP, initially named `TALOS_META_PENDING`.
-2. Zero-fill and verify the whole new partition.
-3. Rename the ESP to `EFI` and the new partition to `META`.
-4. Generate a random UUID and store it as Talos META key `UUIDOverride`
+3. Zero-fill and verify the whole new partition.
+4. Rename the ESP to `EFI` and the new partition to `META`.
+5. Sort GPT entries into physical LBA order, then create an aligned, exactly
+   100 MiB partition immediately after META as `TALOS_STATE_PENDING`.
+6. Zero-fill and verify the new STATE extent, rename it to `STATE`, sort the
+   GPT again, and reject any remaining overlap or out-of-order entry.
+7. Generate a random UUID and store it as Talos META key `UUIDOverride`
    (`0x0f`), then read it back from both redundant ADV copies.
-5. Change `loader.conf` to select the final Talos UKI.
-6. Delete `EFI/Linux/Talos-prepare.efi`, flush the ESP, and reboot.
+8. Change `loader.conf` to select the final Talos UKI.
+9. Delete `EFI/Linux/Talos-prepare.efi`, flush the ESP, and reboot.
 
-An interrupted run resumes from `TALOS_META_PENDING`. An existing valid
-`META` is never zero-filled again, and an existing valid `UUIDOverride` is
-preserved. Malformed META data or any unexpected partition, size, type, or
-placement stops preparation without deleting the prepare UKI or switching the
-boot target. Do not proceed to `apply-config` after such an error.
+An interrupted run resumes from `TALOS_META_PENDING` or
+`TALOS_STATE_PENDING`. Existing valid `META` and `STATE` partitions are never
+zero-filled again, and an existing valid `UUIDOverride` is preserved. The
+preparation UKI intentionally leaves `EPHEMERAL` unallocated so Talos can
+apply its configured size and growth policy. Malformed metadata or any
+unexpected partition, size, type, placement, overlap, or GPT ordering failure
+stops preparation without deleting the prepare UKI or switching the boot
+target. Do not proceed to `apply-config` after such an error.
 
 ### 4. Verify the machine UUID before applying configuration
 
@@ -165,20 +174,25 @@ recovering META; changing it creates a different machine identity in Omni.
 
 ### 5. Apply a non-wiping Talos configuration
 
-The machine configuration must select the internal NVMe explicitly, use this
-repository's installer image, and disable whole-disk wiping:
+Keep the generated machine configuration's install section pointed at the
+internal NVMe and matching downstream image, with whole-disk wiping disabled:
 
 ```yaml
 machine:
   install:
     disk: /dev/nvme0n1
-    image: ghcr.io/OWNER/talos-asahi/installer:v1.13.9-asahi.8
+    image: ghcr.io/OWNER/talos-asahi/installer:v1.13.9-asahi.9
     wipe: false
 ```
 
+Because the preparation UKI has already created META, Talos considers the
+machine installed and the first `apply-config` runs no installer phases. The
+section above is therefore a safety contract for any later explicitly staged
+installation; it does not create STATE on the first configured boot.
+
 Keep the installer image flavor matched to the ESP bundle. Use
-`:v1.13.9-asahi.8-mainline` with the mainline 16K ZIP and
-`:v1.13.9-asahi.8-mainline-4k` with the mainline 4K ZIP. Mixing them causes
+`:v1.13.9-asahi.9-mainline` with the mainline 16K ZIP and
+`:v1.13.9-asahi.9-mainline-4k` with the mainline 4K ZIP. Mixing them causes
 the installer to replace the selected test UKI with a different kernel flavor.
 Likewise, use a `*-longhorn-esp.zip` only with the matching installer tag that
 ends in `-longhorn`.
@@ -195,16 +209,19 @@ talosctl apply-config \
   --file worker.yaml
 ```
 
-Talos reuses `EFI` and `META` and creates `STATE` and `EPHEMERAL` in the
-remaining free space. Never write a generic Talos raw disk image to the whole
-internal NVMe.
+Talos reuses the prepared `EFI`, `META`, and raw `STATE` partitions. It formats
+and mounts STATE, then creates `EPHEMERAL` from the remaining free space using
+the machine configuration's volume policy. GPT entries are already in physical
+LBA order, so this online allocation keeps the in-use META and STATE entry
+numbers stable and only moves the unmounted RecoveryOS entry if necessary.
+Never write a generic Talos raw disk image to the whole internal NVMe.
 
 ## Published image
 
 For a repository named `OWNER/talos-asahi`, the immutable release tag is:
 
 ```text
-ghcr.io/OWNER/talos-asahi/installer:v1.13.9-asahi.8
+ghcr.io/OWNER/talos-asahi/installer:v1.13.9-asahi.9
 ```
 
 Every kernel flavor also has a `-longhorn` installer variant. It contains the
@@ -212,9 +229,9 @@ same patched kernel and installer, plus the Talos `iscsi-tools` and
 `util-linux-tools` system extensions required by Longhorn:
 
 ```text
-ghcr.io/OWNER/talos-asahi/installer:v1.13.9-asahi.8-longhorn
-ghcr.io/OWNER/talos-asahi/installer:v1.13.9-asahi.8-mainline-longhorn
-ghcr.io/OWNER/talos-asahi/installer:v1.13.9-asahi.8-mainline-4k-longhorn
+ghcr.io/OWNER/talos-asahi/installer:v1.13.9-asahi.9-longhorn
+ghcr.io/OWNER/talos-asahi/installer:v1.13.9-asahi.9-mainline-longhorn
+ghcr.io/OWNER/talos-asahi/installer:v1.13.9-asahi.9-mainline-4k-longhorn
 ```
 
 Choose the Longhorn variant only when those extensions are required. Its ESP
@@ -229,7 +246,7 @@ After the first ESP-based installation is working, upgrade a node with:
 NODE_IP=192.0.2.10
 talosctl upgrade \
   --nodes "${NODE_IP}" \
-  --image ghcr.io/OWNER/talos-asahi/installer:v1.13.9-asahi.8 \
+  --image ghcr.io/OWNER/talos-asahi/installer:v1.13.9-asahi.9 \
   --reboot-mode=powercycle
 ```
 
@@ -250,9 +267,9 @@ The existing Asahi ESP must have GPT partition label `EFI`, because Talos finds
 the partition by that label. Keep the Apple GPT, iBootSystemContainer, macOS,
 RecoveryOS, and the existing Asahi boot chain intact.
 
-A completed installation also needs a separate Talos `META` partition on the
-same internal disk. The release's one-time preparation UKI creates it with
-this exact contract:
+A completed installation also needs separate Talos `META` and `STATE`
+partitions on the same internal disk. The release's one-time preparation UKI
+creates them with these exact contracts:
 
 - GPT partition name/PARTLABEL: `META` (uppercase)
 - GPT partition type: Linux filesystem data
@@ -261,29 +278,42 @@ this exact contract:
 - Contents: raw Talos META/ADV data containing the generated `UUIDOverride`;
   do not create a filesystem
 
+STATE:
+
+- GPT partition name/PARTLABEL: `STATE` (uppercase)
+- GPT partition type: Linux filesystem data
+  (`0FC63DAF-8483-4772-8E79-3D69D8477DE4`)
+- Size: exactly 100 MiB
+- Initial contents: zero-filled and unformatted; Talos formats it after the
+  machine configuration is applied
+
 Talos locates this partition by the GPT PARTLABEL, not by a filesystem label or
 a directory named `META` on the ESP. It stores raw metadata and upgrade state
-there. `STATE` and `EPHEMERAL` remain separate Talos partitions. A conceptual
-shared-disk layout is:
+there. STATE stores the machine configuration and persistent system state.
+`EPHEMERAL` remains a separate Talos partition created from the configured
+volume policy. GPT entry numbers are sorted by physical start LBA before the
+preparation UKI exits. A conceptual shared-disk layout before `apply-config`
+is:
 
 ```text
-[Apple/macOS partitions] [Asahi ESP: EFI] [META: 1 MiB] [Talos data/free space] [RecoveryOS]
+[Apple/macOS partitions] [Asahi ESP: EFI] [META: 1 MiB] [STATE: 100 MiB] [free space] [RecoveryOS]
 ```
 
-Do not copy LBAs from another Mac or create META manually for a new
+Do not copy LBAs from another Mac or create META or STATE manually for a new
 installation. The preparation UKI derives the correct disk from the Asahi ESP
-PARTUUID and refuses an occupied or ambiguous post-ESP extent. After it
-finishes, the resulting GPT names can be inspected from macOS with:
+PARTUUID and refuses occupied or ambiguous post-ESP extents. After it finishes,
+the resulting GPT names can be inspected from macOS with:
 
 ```sh
 sudo gpt -r show -l /dev/disk0
 ```
 
-The output must show separate GPT entries named `EFI` and `META`. macOS may
-display the latter generically as `Linux Filesystem`; the GPT name is the field
-that matters. META remains an unformatted raw partition. Its machine UUID
-override is unrelated to the GPT disk GUID, META PARTUUID, or a filesystem
-UUID.
+The output must show separate GPT entries named `EFI`, `META`, and `STATE`, in
+that physical order before RecoveryOS. macOS may display META and STATE
+generically as `Linux Filesystem`; the GPT names are the fields that matter.
+META remains an unformatted raw partition, and STATE remains unformatted until
+Talos applies the machine configuration. The machine UUID override is
+unrelated to the GPT disk GUID, META PARTUUID, or a filesystem UUID.
 
 The ZIP uses a stable final UKI name rather than encoding the downstream build
 revision in the ESP filename. Its initial `loader.conf` selects
@@ -314,8 +344,9 @@ rollback from every early-boot failure.
 `Validate patches` runs for pull requests and pushes to `main`. It verifies the
 source pins and the Asahi, mainline 16K, and mainline 4K patch stacks, applies
 every patch with `git apply --check`, compile-checks the lifecycle package,
-runs the focused sd-boot unit tests, and exercises the prepare GPT transaction
-against disposable disk images.
+runs the focused sd-boot unit tests, and exercises META/STATE creation,
+pending recovery, physical GPT sorting, idempotency, and invalid-geometry
+rejection against disposable disk images.
 
 `Build and publish Asahi Talos` runs manually or when a matching release tag is
 pushed. Manual runs build the selected kernel flavor; `both` retains the older
@@ -403,7 +434,7 @@ images, moves `latest`, or creates a release tag automatically.
 
 For a release, update `versions.env`, make sure the patches still apply, bump
 `BUILD_REVISION` when appropriate, and push the exact computed tag. For the
-current pins that tag is `v1.13.9-asahi.8`.
+current pins that tag is `v1.13.9-asahi.9`.
 
 ## Local validation and build
 
