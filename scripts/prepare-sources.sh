@@ -35,6 +35,7 @@ case "${KERNEL_FLAVOR}" in
       -e '\|kernel/arch/arm64/lib/xor-neon.ko|d' \
       -e '\|kernel/crypto/hkdf.ko|d' \
       -e 's|kernel/crypto/xor.ko|kernel/lib/raid/xor/xor.ko|' \
+      -e '/kernel\/drivers\/net\/ethernet\/stmicro\/stmmac\/stmmac-pci\.ko/a kernel/drivers/net/ethernet/stmicro/stmmac/stmmac_libpci.ko' \
       "${destination}/talos/hack/modules-arm64.txt"
     ;;
   mainline)
