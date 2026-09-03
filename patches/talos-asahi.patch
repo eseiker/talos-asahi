@@ -44,23 +44,6 @@ index 3e3ced2..76d3b87 100644
  COMMON_ARGS += --build-arg=PKG_KMOD=$(PKG_KMOD)
  COMMON_ARGS += --build-arg=PKG_LIBAIO=$(PKG_LIBAIO)
  COMMON_ARGS += --build-arg=PKG_LIBARCHIVE=$(PKG_LIBARCHIVE)
-diff --git a/hack/modules-arm64.txt b/hack/modules-arm64.txt
-index 1cae2f1..c2404f5 100644
---- a/hack/modules-arm64.txt
-+++ b/hack/modules-arm64.txt
-@@ -1,11 +1,12 @@
- kernel/arch/arm64/lib/xor-neon.ko
- kernel/crypto/async_tx/async_memcpy.ko
- kernel/crypto/async_tx/async_pq.ko
- kernel/crypto/async_tx/async_raid6_recov.ko
- kernel/crypto/async_tx/async_tx.ko
- kernel/crypto/async_tx/async_xor.ko
- kernel/crypto/hkdf.ko
- kernel/crypto/xor.ko
- kernel/drivers/acpi/ac.ko
- kernel/drivers/acpi/battery.ko
- kernel/drivers/acpi/button.ko
-+kernel/drivers/net/ethernet/stmicro/stmmac/stmmac-platform.ko
 diff --git a/internal/app/machined/pkg/runtime/v1alpha1/bootloader/sdboot/export_test.go b/internal/app/machined/pkg/runtime/v1alpha1/bootloader/sdboot/export_test.go
 index 68f0b3e..a89347c 100644
 --- a/internal/app/machined/pkg/runtime/v1alpha1/bootloader/sdboot/export_test.go
@@ -100,7 +83,7 @@ index dac46e6..48e2e1a 100644
 -		dbContents     = "fake-db-auth"
 -		ukiFileName    = "Talos-1.13.0.efi"
 +		baseLoaderConf    = "# systemd-boot configuration\n"
-+		managedLoaderConf = "\ndefault Talos-1.13.0*\ntimeout 5\neditor no\n"
++		managedLoaderConf = "\ndefault Talos-1.13.0.efi\ntimeout 5\neditor no\n"
 +		ukiContents       = "fake-uki"
 +		sdBootContents    = "fake-sd-boot"
 +		pkContents        = "fake-pk-auth"
@@ -326,15 +309,27 @@ index fa2e44e..6e69d36 100644
  }
  
  func (c *Config) copyAssets(opts options.InstallOptions, ukiFileName string) error {
-@@ -559,7 +591,7 @@ func (c *Config) copyAssets(opts options.InstallOptions, ukiFileName string) err
+@@ -559,10 +591,6 @@ func (c *Config) copyAssets(opts options.InstallOptions, ukiFileName string) err
  		}
  	}
  
 -	if err := os.WriteFile(filepath.Join(loaderDir, "loader.conf"), loaderConf, 0o644); err != nil {
-+	if err := writeLoaderConfig(filepath.Join(loaderDir, "loader.conf"), loaderConf, ukiFileName); err != nil {
+-		return err
+-	}
+-
+ 	sdbootFilename, err := bootloaderutils.Name(opts.Arch)
+ 	if err != nil {
+ 		return fmt.Errorf("failed to get sd-boot file path: %w", err)
+@@ -582,5 +610,9 @@ func (c *Config) copyAssets(opts options.InstallOptions, ukiFileName string) err
  		return err
  	}
  
++	if err := writeLoaderConfig(filepath.Join(loaderDir, "loader.conf"), loaderConf, ukiFileName); err != nil {
++		return err
++	}
++
+ 	return nil
+ }
 @@ -663,7 +695,22 @@ func (c *Config) revert() error {
  
  		log.Printf("reverting to previous UKI: %s", file)
@@ -459,7 +454,7 @@ index fa2e44e..6e69d36 100644
 +		filtered = append(filtered, line)
 +	}
 +
-+	defaultPattern := strings.TrimSuffix(filepath.Base(ukiFileName), ".efi") + "*"
++	defaultPattern := filepath.Base(ukiFileName)
 +	contents := fmt.Appendf(
 +		[]byte(strings.TrimRight(strings.Join(filtered, "\n"), "\n")),
 +		"\n\ndefault %s\ntimeout 5\neditor no\n",
@@ -481,7 +476,7 @@ index a3b3a6c..2e31e65 100644
  	"testing"
  
  	"github.com/stretchr/testify/require"
-@@ -105,6 +107,138 @@ func TestGenerateNextUKIFileName(t *testing.T) {
+@@ -105,6 +107,143 @@ func TestGenerateNextUKIFileName(t *testing.T) {
  	}
  }
  
@@ -491,11 +486,16 @@ index a3b3a6c..2e31e65 100644
 +	existingFiles := []string{
 +		"/boot/EFI/EFI/Linux/Talos-v1.13.9.efi",
 +		"/boot/EFI/EFI/Linux/Talos-v1.14.0.efi",
++		"/boot/EFI/EFI/Linux/Talos-v1.14.0-mainline-4k.efi",
 +	}
 +
 +	foundFile, found := sdboot.FindMatchingUKIPattern(existingFiles, "Talos-v1.14.0*")
 +	require.True(t, found)
 +	require.Equal(t, "Talos-v1.14.0.efi", foundFile)
++
++	foundFile, found = sdboot.FindMatchingUKIPattern(existingFiles, "Talos-v1.14.0-mainline-4k.efi")
++	require.True(t, found)
++	require.Equal(t, "Talos-v1.14.0-mainline-4k.efi", foundFile)
 +
 +	_, found = sdboot.FindMatchingUKIPattern(existingFiles, "Talos-v1.15.0*")
 +	require.False(t, found)
@@ -511,11 +511,11 @@ index a3b3a6c..2e31e65 100644
 +
 +	contents, err := os.ReadFile(path)
 +	require.NoError(t, err)
-+	require.Equal(t, "# systemd-boot configuration\n\nsecure-boot-enroll manual\n\ndefault Talos-v1.14.0*\ntimeout 5\neditor no\n", string(contents))
++	require.Equal(t, "# systemd-boot configuration\n\nsecure-boot-enroll manual\n\ndefault Talos-v1.14.0.efi\ntimeout 5\neditor no\n", string(contents))
 +
 +	entry, err := sdboot.ReadLoaderDefault(path)
 +	require.NoError(t, err)
-+	require.Equal(t, "Talos-v1.14.0*", entry)
++	require.Equal(t, "Talos-v1.14.0.efi", entry)
 +}
 +
 +func TestResolveBootEntries(t *testing.T) {
