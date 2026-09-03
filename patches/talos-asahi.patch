@@ -48,7 +48,7 @@ diff --git a/hack/modules-arm64.txt b/hack/modules-arm64.txt
 index 1cae2f1..c2404f5 100644
 --- a/hack/modules-arm64.txt
 +++ b/hack/modules-arm64.txt
-@@ -1,11 +1,8 @@
+@@ -1,11 +1,10 @@
 -kernel/arch/arm64/lib/xor-neon.ko
  kernel/crypto/async_tx/async_memcpy.ko
  kernel/crypto/async_tx/async_pq.ko
@@ -56,10 +56,11 @@ index 1cae2f1..c2404f5 100644
  kernel/crypto/async_tx/async_tx.ko
  kernel/crypto/async_tx/async_xor.ko
 -kernel/crypto/hkdf.ko
--kernel/crypto/xor.ko
+ kernel/crypto/xor.ko
  kernel/drivers/acpi/ac.ko
  kernel/drivers/acpi/battery.ko
  kernel/drivers/acpi/button.ko
++kernel/drivers/net/ethernet/stmicro/stmmac/stmmac-platform.ko
 diff --git a/internal/app/machined/pkg/runtime/v1alpha1/bootloader/sdboot/export_test.go b/internal/app/machined/pkg/runtime/v1alpha1/bootloader/sdboot/export_test.go
 index 68f0b3e..a89347c 100644
 --- a/internal/app/machined/pkg/runtime/v1alpha1/bootloader/sdboot/export_test.go
