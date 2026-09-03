@@ -11,19 +11,19 @@ index 2ecd193..030cde3 100644
 -  linux_sha256: 5ebdadb10a4b5708fc6b1c457764a110bc49f8150cc3502c59b921ead8c6fc8c
 -  linux_sha512: 711e08958a8a4c39206018d0222687dc5a01845a9226ae44f7d3f0cfcea76caae041cee958dfe8c0cfc8c728a5a2241b29018ccf1b7593b9615c27057d2628c4
 +  # Asahi Linux downstream kernel, pinned for reproducible Talos builds.
-+  linux_version: 7.1.9
-+  linux_ref: 77cb8f24c2381a8abb7272d7bbdec548d6426a8a
-+  linux_sha256: aef64ada57e626996093c066bdacb595672cccb0b18fed661363fdbde48f387c
-+  linux_sha512: bfa714b452bf33187875b3c4354c53ef095f502659d111cc6aa9ae639e83515d7d396490e4fe08da39454495259100bd973dfb07c6b4d255916d454ceaf12689
++  linux_version: ASAHI_KERNEL_VERSION
++  linux_ref: ASAHI_KERNEL_SHA
++  linux_sha256: ASAHI_KERNEL_SHA256
++  linux_sha512: ASAHI_KERNEL_SHA512
  
    # renovate: datasource=git-tags extractVersion=^libaio-(?<version>.*)$ depName=https://pagure.io/libaio.git
    libaio_version: 0.3.113
 diff --git a/kernel/build/configure-asahi-arm64.sh b/kernel/build/configure-asahi-arm64.sh
 new file mode 100755
-index 0000000..759f860
+index 0000000..addbbc1
 --- /dev/null
 +++ b/kernel/build/configure-asahi-arm64.sh
-@@ -0,0 +1,99 @@
+@@ -0,0 +1,103 @@
 +#!/usr/bin/env bash
 +
 +set -euo pipefail
@@ -69,7 +69,11 @@ index 0000000..759f860
 +trap 'rm -f "${before}"' EXIT
 +cp .config "${before}"
 +
-+make ARCH=arm64 olddefconfig
++make_args=(ARCH=arm64 LLVM=1)
++if [[ -n "${KERNEL_CONFIG_LD:-}" ]]; then
++  make_args+=("LD=${KERNEL_CONFIG_LD}")
++fi
++make "${make_args[@]}" olddefconfig
 +
 +echo "Asahi kernel olddefconfig changes:"
 +scripts/diffconfig "${before}" .config

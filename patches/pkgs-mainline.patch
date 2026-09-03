@@ -1,49 +1,137 @@
+diff --git a/kernel/build/configure-mainline-arm64.sh b/kernel/build/configure-mainline-arm64.sh
+new file mode 100755
+index 0000000..03723d8
+--- /dev/null
++++ b/kernel/build/configure-mainline-arm64.sh
+@@ -0,0 +1,117 @@
++#!/usr/bin/env bash
++
++set -euo pipefail
++
++source_dir="${1:-/src}"
++page_size="${2:-16k}"
++cd "${source_dir}"
++
++# Mainline has the boot-critical Apple SoC support needed by the Mac14,13.
++# Keep those drivers built-in.
++scripts/config \
++  --enable ARCH_APPLE \
++  --enable APPLE_AIC \
++  --enable APPLE_WATCHDOG \
++  --enable APPLE_DART \
++  --enable APPLE_SART \
++  --enable APPLE_MAILBOX \
++  --enable APPLE_RTKIT \
++  --enable MFD_MACSMC \
++  --enable APPLE_PMGR_PWRSTATE \
++  --enable I2C_APPLE \
++  --enable NVME_APPLE \
++  --enable PCIE_APPLE \
++  --enable PINCTRL_APPLE_GPIO \
++  --enable PWM_APPLE \
++  --enable SPI_APPLE \
++  --enable SPMI_APPLE \
++  --enable GPIO_MACSMC \
++  --enable POWER_RESET_MACSMC \
++  --enable ARM_APPLE_SOC_CPUFREQ \
++  --enable APPLE_M1_CPU_PMU \
++  --enable COMMON_CLK_APPLE_NCO \
++  --enable NVMEM_APPLE_EFUSES \
++  --enable NVMEM_APPLE_SPMI \
++  --enable SERIAL_SAMSUNG \
++  --enable SERIAL_SAMSUNG_CONSOLE \
++  --disable ARM64_64K_PAGES
++
++case "${page_size}" in
++  16k)
++    scripts/config \
++      --disable ARM64_4K_PAGES \
++      --enable ARM64_16K_PAGES
++    ;;
++  4k)
++    scripts/config \
++      --enable ARM64_4K_PAGES \
++      --disable ARM64_16K_PAGES
++    ;;
++  *)
++    printf 'unsupported mainline page size: %s\n' "${page_size}" >&2
++    exit 1
++    ;;
++esac
++
++before="$(mktemp)"
++trap 'rm -f "${before}"' EXIT
++cp .config "${before}"
++
++make_args=(ARCH=arm64 LLVM=1)
++if [[ -n "${KERNEL_CONFIG_LD:-}" ]]; then
++  make_args+=("LD=${KERNEL_CONFIG_LD}")
++fi
++make "${make_args[@]}" olddefconfig
++
++printf 'Mainline %s kernel olddefconfig changes:\n' "${page_size}"
++scripts/diffconfig "${before}" .config
++
++check_config() {
++  local symbol="$1"
++  local expected="$2"
++  local actual
++
++  actual="$(scripts/config --state "${symbol}")"
++  if [[ "${actual}" != "${expected}" ]]; then
++    printf 'olddefconfig changed CONFIG_%s from %s to %s\n' "${symbol}" "${expected}" "${actual}" >&2
++    return 1
++  fi
++}
++
++for symbol in \
++  ARCH_APPLE \
++  APPLE_AIC \
++  APPLE_WATCHDOG \
++  APPLE_DART \
++  APPLE_SART \
++  APPLE_MAILBOX \
++  APPLE_RTKIT \
++  MFD_MACSMC \
++  APPLE_PMGR_PWRSTATE \
++  I2C_APPLE \
++  NVME_APPLE \
++  PCIE_APPLE \
++  PINCTRL_APPLE_GPIO \
++  PWM_APPLE \
++  SPI_APPLE \
++  SPMI_APPLE \
++  GPIO_MACSMC \
++  POWER_RESET_MACSMC \
++  ARM_APPLE_SOC_CPUFREQ \
++  APPLE_M1_CPU_PMU \
++  COMMON_CLK_APPLE_NCO \
++  NVMEM_APPLE_EFUSES \
++  NVMEM_APPLE_SPMI \
++  SERIAL_SAMSUNG \
++  SERIAL_SAMSUNG_CONSOLE; do
++  check_config "${symbol}" y
++done
++
++check_config ARM64_64K_PAGES n
++if [[ "${page_size}" == "16k" ]]; then
++  check_config ARM64_4K_PAGES n
++  check_config ARM64_16K_PAGES y
++else
++  check_config ARM64_4K_PAGES y
++  check_config ARM64_16K_PAGES n
++fi
 diff --git a/kernel/build/pkg.yaml b/kernel/build/pkg.yaml
-index 40f25d5..3189f20 100644
+index 40f25d5..b232e4c 100644
 --- a/kernel/build/pkg.yaml
 +++ b/kernel/build/pkg.yaml
-@@ -13,6 +13,45 @@ steps:
+@@ -13,6 +13,10 @@ steps:
          cd /src
          cp -v /pkg/config-${CARCH} .config
          cp -v /pkg/certs/* certs/
 +      - |
 +        if [[ "${ARCH}" == "arm64" ]]; then
-+          cd /src
-+
-+          # Mainline 6.18 has the boot-critical Apple SoC support needed by
-+          # the Mac14,13. Keep those drivers built-in and use 16 KiB pages.
-+          scripts/config \
-+            --enable ARCH_APPLE \
-+            --enable ARM64_MEMORY_MODEL_CONTROL \
-+            --enable APPLE_AIC \
-+            --enable APPLE_WATCHDOG \
-+            --enable APPLE_DART \
-+            --enable APPLE_SART \
-+            --enable APPLE_MAILBOX \
-+            --enable APPLE_RTKIT \
-+            --enable MFD_MACSMC \
-+            --enable APPLE_PMGR_PWRSTATE \
-+            --enable I2C_APPLE \
-+            --enable NVME_APPLE \
-+            --enable PCIE_APPLE \
-+            --enable PINCTRL_APPLE_GPIO \
-+            --enable PWM_APPLE \
-+            --enable SPI_APPLE \
-+            --enable SPMI_APPLE \
-+            --enable GPIO_MACSMC \
-+            --enable POWER_RESET_MACSMC \
-+            --enable ARM_APPLE_SOC_CPUFREQ \
-+            --enable APPLE_M1_CPU_PMU \
-+            --enable COMMON_CLK_APPLE_NCO \
-+            --enable NVMEM_APPLE_EFUSES \
-+            --enable NVMEM_APPLE_SPMI \
-+            --enable SERIAL_SAMSUNG \
-+            --enable SERIAL_SAMSUNG_CONSOLE \
-+            --disable ARM64_4K_PAGES \
-+            --enable ARM64_16K_PAGES \
-+            --disable ARM64_64K_PAGES
-+
-+          make olddefconfig
++          /pkg/configure-mainline-arm64.sh /src 16k
 +        fi
        - |
          cd /src

@@ -17,6 +17,20 @@ apply_patch_checked "${destination}/talos" "${root}/patches/talos-asahi.patch"
 case "${KERNEL_FLAVOR}" in
   asahi)
     apply_patch_checked "${destination}/pkgs" "${root}/patches/pkgs-asahi.patch"
+    if [[ ! "${ASAHI_KERNEL_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ||
+          ! "${ASAHI_KERNEL_SHA}" =~ ^[0-9a-f]{40}$ ||
+          ! "${ASAHI_KERNEL_SHA256}" =~ ^[0-9a-f]{64}$ ||
+          ! "${ASAHI_KERNEL_SHA512}" =~ ^[0-9a-f]{128}$ ]]; then
+      printf 'invalid Asahi kernel pin in versions.env\n' >&2
+      exit 1
+    fi
+
+    sed -i \
+      -e "s/ASAHI_KERNEL_VERSION/${ASAHI_KERNEL_VERSION}/" \
+      -e "s/ASAHI_KERNEL_SHA256/${ASAHI_KERNEL_SHA256}/" \
+      -e "s/ASAHI_KERNEL_SHA512/${ASAHI_KERNEL_SHA512}/" \
+      -e "s/ASAHI_KERNEL_SHA/${ASAHI_KERNEL_SHA}/" \
+      "${destination}/pkgs/Pkgfile"
     ;;
   mainline)
     apply_patch_checked "${destination}/pkgs" "${root}/patches/pkgs-mainline.patch"

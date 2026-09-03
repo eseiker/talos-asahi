@@ -391,7 +391,7 @@ explicitly.
 
 The experimental `mainline` and `mainline-4k` flavors can be selected directly
 in a manual run and are also built alongside Asahi for every matching release
-tag. Both keep the Talos pkgs pin on upstream Linux 6.18.44 and enable the
+tag. Both keep the Talos pkgs pin on upstream Linux 6.18.48 and enable the
 Apple SoC drivers available there. `mainline` builds a 16 KiB-page UKI and
 installer; `mainline-4k` retains the upstream Talos 4 KiB page size. Their
 outputs carry `-mainline` and `-mainline-4k` suffixes respectively. A tag build
@@ -425,12 +425,14 @@ atomic installation overlay. The regular and Longhorn installer OCI archives
 and `build.env` metadata remain available only in the short-lived Actions
 artifacts. The repository itself does not track a binary output directory.
 
-`Track upstream Talos releases` runs daily and can also be dispatched manually.
-When a newer stable Talos release appears, it resolves the exact Talos commit,
-extracts the matching pkgs commit from that release's `Makefile`, updates the
-mainline kernel version from the pinned pkgs `Pkgfile`, refreshes the Longhorn
-extension references from Image Factory, resets `BUILD_REVISION=1`, and pushes
-an `automation/talos-vX.Y.Z` branch. It then
+`Track upstream releases` runs daily and can also be dispatched manually.
+It resolves the latest stable Talos release and downstream AsahiLinux
+`asahi-X.Y.Z-N` kernel tag. The tag's commit and archive checksums are pinned
+for reproducibility.
+Either upstream changing triggers an update. For Talos updates, the workflow
+also extracts the matching pkgs commit, mainline kernel version, and Longhorn
+extension references. It resets `BUILD_REVISION=1` and pushes a unique
+`automation/talos-vX.Y.Z-asahi-X.Y.Z-SHA` branch, then
 dispatches artifact-only Asahi, mainline 16K, and mainline 4K builds. The
 workflow also tries to open a draft pull request; repositories which keep
 GitHub Actions pull request creation disabled still get the update branch and
@@ -439,12 +441,14 @@ images, moves `latest`, or creates a release tag automatically.
 
 For a release, update `versions.env`, make sure the patches still apply, bump
 `BUILD_REVISION` when appropriate, and push the exact computed tag. For the
-current pins that tag is `v1.13.9-asahi.9`.
+current pins that tag is `v1.14.0-asahi.1`.
 
 ## Local validation and build
 
-Patch validation only needs Git and Docker. It also builds the small prepare
-rootfs and tests its GPT transaction against disposable disk images:
+Validation builds the small prepare rootfs, tests its GPT transaction against
+disposable disk images, and runs `olddefconfig` for the Asahi, mainline 16K, and
+mainline 4K kernels. It prints each kernel config diff and rejects changes to
+the requested Apple platform or page-size settings:
 
 ```sh
 ./scripts/validate.sh
@@ -468,10 +472,11 @@ The CI workflow contains the known-good Linux builder configuration.
 
 All refs are recorded in `versions.env`. The current build uses:
 
-- Talos `3ebd10a7c1bd0f81742bdcd0c3fe56d727db7401`
-- Talos pkgs `f541ca434ee63964319bb912e370f0ed407f8a18`
-- AsahiLinux/linux `77cb8f24c2381a8abb7272d7bbdec548d6426a8a`
-- Mainline Linux `6.18.44` (the kernel source pinned by Talos pkgs)
+- Talos `9abd05af449ebf9cb1827648298291afce18d714`
+- Talos pkgs `2f03590c50e45a9439a4b3abcdbe247693c179e0`
+- AsahiLinux/linux `asahi-7.1.12-1`
+  (`ca9a850f237f98949996eefb8980371a5d58c886`)
+- Mainline Linux `6.18.48` (the kernel source pinned by Talos pkgs)
 
 Do not write a generated raw disk image over the whole internal Apple NVMe.
 That would replace the partition table instead of preserving the Asahi/macOS
