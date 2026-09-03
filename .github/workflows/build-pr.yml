@@ -50,8 +50,26 @@ jobs:
           done
           exit 1
 
+      - name: Restore per-PR kernel cache
+        id: kernel-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/talos-asahi-kernel-cache
+          key: talos-asahi-kernel-pr-${{ github.event.number }}-${{ matrix.kernel_flavor }}-${{ github.sha }}
+          restore-keys: |
+            talos-asahi-kernel-pr-${{ github.event.number }}-${{ matrix.kernel_flavor }}-
+
       - name: Build installer and boot bundle
+        env:
+          KERNEL_CACHE_DIR: ${{ runner.temp }}/talos-asahi-kernel-cache
         run: ./scripts/build.sh
+
+      - name: Save per-PR kernel cache
+        if: always() && steps.kernel-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/talos-asahi-kernel-cache
+          key: talos-asahi-kernel-pr-${{ github.event.number }}-${{ matrix.kernel_flavor }}-${{ github.sha }}
 
       - name: Upload boot bundles
         uses: actions/upload-artifact@v4
