@@ -16,6 +16,7 @@ trap cleanup EXIT
 "${root}/scripts/test-prepare.sh"
 
 KERNEL_FLAVOR=asahi "${root}/scripts/prepare-sources.sh" "${validation_root}/asahi"
+"${root}/scripts/validate-asahi-kernel-config.sh" "${validation_root}/asahi/pkgs"
 KERNEL_FLAVOR=mainline "${root}/scripts/prepare-sources.sh" "${validation_root}/mainline"
 KERNEL_FLAVOR=mainline-4k "${root}/scripts/prepare-sources.sh" "${validation_root}/mainline-4k"
 
