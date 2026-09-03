@@ -31,11 +31,6 @@ case "${KERNEL_FLAVOR}" in
       -e "s/ASAHI_KERNEL_SHA512/${ASAHI_KERNEL_SHA512}/" \
       -e "s/ASAHI_KERNEL_SHA/${ASAHI_KERNEL_SHA}/" \
       "${destination}/pkgs/Pkgfile"
-    sed -i \
-      -e '\|kernel/arch/arm64/lib/xor-neon.ko|d' \
-      -e '\|kernel/crypto/hkdf.ko|d' \
-      -e 's|kernel/crypto/xor.ko|kernel/lib/raid/xor/xor.ko|' \
-      "${destination}/talos/hack/modules-arm64.txt"
     ;;
   mainline)
     apply_patch_checked "${destination}/pkgs" "${root}/patches/pkgs-mainline.patch"
