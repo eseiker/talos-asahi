@@ -23,7 +23,7 @@ new file mode 100755
 index 0000000..addbbc1
 --- /dev/null
 +++ b/kernel/build/configure-asahi-arm64.sh
-@@ -0,0 +1,103 @@
+@@ -0,0 +1,104 @@
 +#!/usr/bin/env bash
 +
 +set -euo pipefail
@@ -60,7 +60,7 @@ index 0000000..addbbc1
 +  --enable APPLE_M1_CPU_PMU \
 +  --enable COMMON_CLK_APPLE_NCO \
 +  --enable ARM_APPLE_CPUIDLE \
-+  --enable STMMAC_LIBPCI \
++  --module STMMAC_LIBPCI \
 +  --module TOUCHSCREEN_APPLE_Z2 \
 +  --disable ARM64_4K_PAGES \
 +  --enable ARM64_16K_PAGES \
@@ -117,12 +117,11 @@ index 0000000..addbbc1
 +  APPLE_M1_CPU_PMU \
 +  COMMON_CLK_APPLE_NCO \
 +  ARM_APPLE_CPUIDLE \
-+  STMMAC_LIBPCI \
 +  ARM64_16K_PAGES; do
 +  check_config "${symbol}" y
 +done
 +
-+for symbol in SENSORS_MACSMC_HWMON TOUCHSCREEN_APPLE_Z2; do
++for symbol in SENSORS_MACSMC_HWMON STMMAC_LIBPCI TOUCHSCREEN_APPLE_Z2; do
 +  check_config "${symbol}" m
 +done
 +
