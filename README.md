@@ -431,8 +431,9 @@ It resolves the latest stable Talos release and downstream AsahiLinux
 for reproducibility.
 Either upstream changing triggers an update. For Talos updates, the workflow
 also extracts the matching pkgs commit, mainline kernel version, and Longhorn
-extension references. It resets `BUILD_REVISION=1` and pushes a unique
-`automation/talos-vX.Y.Z-asahi-X.Y.Z-SHA` branch, then
+extension references. It resets `BUILD_REVISION=1` for a new Talos release and
+increments it for Asahi-only rebuilds, then pushes a unique
+`automation/talos-vX.Y.Z-asahi-X.Y.Z-SHA` branch and
 dispatches artifact-only Asahi, mainline 16K, and mainline 4K builds. The
 workflow also tries to open a draft pull request; repositories which keep
 GitHub Actions pull request creation disabled still get the update branch and

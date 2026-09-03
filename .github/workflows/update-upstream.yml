@@ -102,7 +102,7 @@ jobs:
               "- pkgs: \`${PKGS_SHA}\`" \
               "- Asahi kernel: \`${ASAHI_KERNEL_TAG}\` (\`${ASAHI_KERNEL_SHA}\`)" \
               "- mainline kernel: \`${MAINLINE_KERNEL_VERSION}\`" \
-              '- build revision reset to `1`' \
+              '- build revision reset to `1` for Talos updates and incremented for Asahi-only rebuilds' \
               '' \
               'The tracker separately dispatched artifact-only Asahi, mainline 16K, and mainline 4K builds. Fix any patch conflicts in this branch, then merge and create the computed release tag manually.')"
 

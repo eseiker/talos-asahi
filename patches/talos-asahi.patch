@@ -61,10 +61,10 @@ index 1cae2f1..c2404f5 100644
  kernel/drivers/acpi/battery.ko
  kernel/drivers/acpi/button.ko
 diff --git a/internal/app/machined/pkg/runtime/v1alpha1/bootloader/sdboot/export_test.go b/internal/app/machined/pkg/runtime/v1alpha1/bootloader/sdboot/export_test.go
-index 68f0b3e..ef04e26 100644
+index 68f0b3e..a89347c 100644
 --- a/internal/app/machined/pkg/runtime/v1alpha1/bootloader/sdboot/export_test.go
 +++ b/internal/app/machined/pkg/runtime/v1alpha1/bootloader/sdboot/export_test.go
-@@ -6,9 +6,12 @@ package sdboot
+@@ -6,9 +6,13 @@ package sdboot
  
  // exported for testing only.
  var (
@@ -79,6 +79,7 @@ index 68f0b3e..ef04e26 100644
 +	FindMatchingUKIPattern = findMatchingUKIPattern
 +	GenerateNextUKIName    = generateNextUKIName
 +	ReadLoaderDefault      = readLoaderDefault
++	ResolveBootEntries     = resolveBootEntries
 +	WriteLoaderConfig      = writeLoaderConfig
 +	CopyAssets             = (*Config).copyAssets
  )
@@ -140,7 +141,7 @@ index 6cd1367..5b2e9d3 100644
 -
 -timeout 10
 diff --git a/internal/app/machined/pkg/runtime/v1alpha1/bootloader/sdboot/sdboot.go b/internal/app/machined/pkg/runtime/v1alpha1/bootloader/sdboot/sdboot.go
-index fa2e44e..4dcd163 100644
+index fa2e44e..6e69d36 100644
 --- a/internal/app/machined/pkg/runtime/v1alpha1/bootloader/sdboot/sdboot.go
 +++ b/internal/app/machined/pkg/runtime/v1alpha1/bootloader/sdboot/sdboot.go
 @@ -136,9 +136,13 @@ func ProbeWithCallback(disk string, options options.ProbeOptions, callback func(
@@ -158,7 +159,7 @@ index fa2e44e..4dcd163 100644
  			}
  
  			options.Logf("sd-boot: LoaderEntryDefault: %s", loaderEntryDefault)
-@@ -147,41 +151,84 @@ func ProbeWithCallback(disk string, options options.ProbeOptions, callback func(
+@@ -147,41 +151,50 @@ func ProbeWithCallback(disk string, options options.ProbeOptions, callback func(
  			// stale after kexec, where sd-boot did not participate in the current boot.
  			loaderEntrySelected, err := ReadVariable(LoaderEntrySelectedName)
  			if err != nil {
@@ -192,72 +193,33 @@ index fa2e44e..4dcd163 100644
  
 -			if loaderEntrySelected == "" && loaderEntryDefault == "" {
 -				return errors.New("sd-boot: no LoaderEntryDefault or LoaderEntrySelected found, cannot continue")
-+			var (
-+				bootedEntry     string
-+				bootedEntryOk   bool
-+				loaderEntry     string
-+				nextBootEntry   string
-+				nextBootEntryOk bool
-+			)
-+
-+			// Asahi's U-Boot does not reliably provide writable/persistent EFI variables.
-+			// Treat loader.conf as authoritative for the next boot, and only use EFI variables
-+			// to distinguish the booted entry when their persistent default agrees with it.
 +			loaderDefault, loaderErr := readLoaderDefault(filepath.Join(constants.EFIMountPoint, "loader", "loader.conf"))
 +			if loaderErr != nil {
 +				options.Logf("sd-boot: failed to read loader.conf default: %v", loaderErr)
 +			} else {
 +				options.Logf("sd-boot: loader.conf default: %s", loaderDefault)
-+
-+				if entry, ok := findMatchingUKIPattern(ukiFiles, loaderDefault); ok {
-+					loaderEntry = entry
-+					nextBootEntry, nextBootEntryOk = entry, true
-+				}
-+			}
-+
-+			if efiVariablesAvailable && (loaderEntry == "" || strings.EqualFold(loaderEntry, loaderEntryDefault)) {
-+				bootedEntry, bootedEntryOk = findBootedUKIFile(
-+					ukiFiles,
-+					loaderEntryDefault,
-+					loaderEntrySelected,
-+					loaderEntryOneShot,
-+					loaderEntryRebootReason,
-+				)
  			}
  
 -			bootedEntry, bootedEntryOk := findBootedUKIFile(
--				ukiFiles,
--				loaderEntryDefault,
--				loaderEntrySelected,
--				loaderEntryOneShot,
--				loaderEntryRebootReason,
--			)
-+			if !bootedEntryOk && loaderEntry != "" {
-+				bootedEntry, bootedEntryOk = loaderEntry, true
-+			}
-+
-+			if !nextBootEntryOk {
-+				nextBootEntry, nextBootEntryOk = findNextBootUKIFile(ukiFiles, loaderEntryDefault, loaderEntrySelected)
-+			}
++			bootedEntry, bootedEntryOk, nextBootEntry, nextBootEntryOk := resolveBootEntries(
+ 				ukiFiles,
+ 				loaderEntryDefault,
+ 				loaderEntrySelected,
+ 				loaderEntryOneShot,
+ 				loaderEntryRebootReason,
++				loaderDefault,
++				efiVariablesAvailable,
+ 			)
  
 -			nextBootEntry, nextBootEntryOk := findNextBootUKIFile(ukiFiles, loaderEntryDefault, loaderEntrySelected)
-+			if len(ukiFiles) == 1 {
-+				if !bootedEntryOk {
-+					bootedEntry, bootedEntryOk = filepath.Base(ukiFiles[0]), true
-+				}
-+
-+				if !nextBootEntryOk {
-+					nextBootEntry, nextBootEntryOk = filepath.Base(ukiFiles[0]), true
-+				}
-+			}
- 
+-
  			if !bootedEntryOk || !nextBootEntryOk {
 -				return errors.New("sd-boot: no valid boot entry found matching LoaderEntrySelected or LoaderEntryDefault")
 +				return errors.New("sd-boot: no valid boot entry found in EFI variables or loader.conf")
  			}
  
  			sdbootConf = &Config{
-@@ -429,16 +476,26 @@ func (c *Config) Upgrade(opts options.InstallOptions) (*options.InstallResult, e
+@@ -429,16 +442,26 @@ func (c *Config) Upgrade(opts options.InstallOptions) (*options.InstallResult, e
  				return fmt.Errorf("failed to generate next UKI name: %w", err)
  			}
  
@@ -289,7 +251,7 @@ index fa2e44e..4dcd163 100644
  			}
  
  			for _, file := range files {
-@@ -488,48 +545,57 @@ func (c *Config) Upgrade(opts options.InstallOptions) (*options.InstallResult, e
+@@ -488,48 +511,57 @@ func (c *Config) Upgrade(opts options.InstallOptions) (*options.InstallResult, e
  //
  //nolint:gocyclo,cyclop
  func (c *Config) setup(opts options.InstallOptions, ukiFileName string) (*options.InstallResult, error) {
@@ -347,15 +309,15 @@ index fa2e44e..4dcd163 100644
  
  	if err := CreateBootEntry(efiRW, blkidInfo, opts.Printf, sdbootFilename); err != nil {
 -		return nil, fmt.Errorf("failed to create boot entry: %w", err)
-+		return fmt.Errorf("failed to create boot entry: %w", err)
- 	}
- 
+-	}
+-
 -	if opts.ExtraInstallStep != nil {
 -		if err := opts.ExtraInstallStep(); err != nil {
 -			return nil, err
 -		}
--	}
--
++		return fmt.Errorf("failed to create boot entry: %w", err)
+ 	}
+ 
 -	return &options.InstallResult{
 -		PreviousLabel: c.Fallback,
 -	}, nil
@@ -363,7 +325,7 @@ index fa2e44e..4dcd163 100644
  }
  
  func (c *Config) copyAssets(opts options.InstallOptions, ukiFileName string) error {
-@@ -559,7 +625,7 @@ func (c *Config) copyAssets(opts options.InstallOptions, ukiFileName string) err
+@@ -559,7 +591,7 @@ func (c *Config) copyAssets(opts options.InstallOptions, ukiFileName string) err
  		}
  	}
  
@@ -372,7 +334,7 @@ index fa2e44e..4dcd163 100644
  		return err
  	}
  
-@@ -663,7 +729,22 @@ func (c *Config) revert() error {
+@@ -663,7 +695,22 @@ func (c *Config) revert() error {
  
  		log.Printf("reverting to previous UKI: %s", file)
  
@@ -396,10 +358,58 @@ index fa2e44e..4dcd163 100644
  	}
  
  	return errors.New("previous UKI not found")
-@@ -711,3 +792,60 @@ func findNextBootUKIFile(ukiFiles []string, defaultEntry, selectedEntry string)
+@@ -711,3 +758,108 @@ func findNextBootUKIFile(ukiFiles []string, defaultEntry, selectedEntry string)
  
  	return findMatchingUKIFile(ukiFiles, selectedEntry)
  }
++
++func resolveBootEntries(ukiFiles []string, defaultEntry, selectedEntry, oneShotEntry, rebootReason, loaderDefault string, efiVariablesAvailable bool) (string, bool, string, bool) {
++	var (
++		bootedEntry     string
++		bootedEntryOk   bool
++		loaderEntry     string
++		nextBootEntry   string
++		nextBootEntryOk bool
++	)
++
++	// Asahi's U-Boot does not reliably provide writable/persistent EFI variables.
++	// Treat loader.conf as authoritative for the next boot, and only use EFI variables
++	// to distinguish the booted entry when their persistent default agrees with it.
++	if entry, ok := findMatchingUKIPattern(ukiFiles, loaderDefault); ok {
++		loaderEntry = entry
++		nextBootEntry, nextBootEntryOk = entry, true
++	}
++
++	if efiVariablesAvailable && (loaderEntry == "" || strings.EqualFold(loaderEntry, defaultEntry)) {
++		bootedEntry, bootedEntryOk = findBootedUKIFile(
++			ukiFiles,
++			defaultEntry,
++			selectedEntry,
++			oneShotEntry,
++			rebootReason,
++		)
++	}
++
++	if !bootedEntryOk && loaderEntry != "" {
++		bootedEntry, bootedEntryOk = loaderEntry, true
++	}
++
++	if !nextBootEntryOk {
++		nextBootEntry, nextBootEntryOk = findNextBootUKIFile(ukiFiles, defaultEntry, selectedEntry)
++	}
++
++	if len(ukiFiles) == 1 {
++		if !bootedEntryOk {
++			bootedEntry, bootedEntryOk = filepath.Base(ukiFiles[0]), true
++		}
++
++		if !nextBootEntryOk {
++			nextBootEntry, nextBootEntryOk = filepath.Base(ukiFiles[0]), true
++		}
++	}
++
++	return bootedEntry, bootedEntryOk, nextBootEntry, nextBootEntryOk
++}
 +
 +func findMatchingUKIPattern(ukiFiles []string, pattern string) (string, bool) {
 +	if pattern == "" {
@@ -458,7 +468,7 @@ index fa2e44e..4dcd163 100644
 +	return os.WriteFile(path, contents, 0o644)
 +}
 diff --git a/internal/app/machined/pkg/runtime/v1alpha1/bootloader/sdboot/sdboot_test.go b/internal/app/machined/pkg/runtime/v1alpha1/bootloader/sdboot/sdboot_test.go
-index a3b3a6c..736cdfc 100644
+index a3b3a6c..2e31e65 100644
 --- a/internal/app/machined/pkg/runtime/v1alpha1/bootloader/sdboot/sdboot_test.go
 +++ b/internal/app/machined/pkg/runtime/v1alpha1/bootloader/sdboot/sdboot_test.go
 @@ -5,6 +5,8 @@
@@ -470,7 +480,7 @@ index a3b3a6c..736cdfc 100644
  	"testing"
  
  	"github.com/stretchr/testify/require"
-@@ -105,6 +107,39 @@ func TestGenerateNextUKIFileName(t *testing.T) {
+@@ -105,6 +107,138 @@ func TestGenerateNextUKIFileName(t *testing.T) {
  	}
  }
  
@@ -505,6 +515,105 @@ index a3b3a6c..736cdfc 100644
 +	entry, err := sdboot.ReadLoaderDefault(path)
 +	require.NoError(t, err)
 +	require.Equal(t, "Talos-v1.14.0*", entry)
++}
++
++func TestResolveBootEntries(t *testing.T) {
++	t.Parallel()
++
++	for _, testData := range []struct {
++		name                  string
++		existingFiles         []string
++		defaultEntry          string
++		selectedEntry         string
++		oneShotEntry          string
++		rebootReason          string
++		loaderDefault         string
++		efiVariablesAvailable bool
++		expectedBooted        string
++		expectedNext          string
++	}{
++		{
++			name: "matching_loader_and_efi_default",
++			existingFiles: []string{
++				"/EFI/Linux/Talos-old.efi",
++				"/EFI/Linux/Talos-current.efi",
++			},
++			defaultEntry:          "Talos-current.efi",
++			selectedEntry:         "Talos-current.efi",
++			loaderDefault:         "Talos-current*",
++			efiVariablesAvailable: true,
++			expectedBooted:        "Talos-current.efi",
++			expectedNext:          "Talos-current.efi",
++		},
++		{
++			name: "stale_efi_default_prefers_loader_conf",
++			existingFiles: []string{
++				"/EFI/Linux/Talos-old.efi",
++				"/EFI/Linux/Talos-current.efi",
++			},
++			defaultEntry:          "Talos-old.efi",
++			selectedEntry:         "Talos-old.efi",
++			loaderDefault:         "Talos-current*",
++			efiVariablesAvailable: true,
++			expectedBooted:        "Talos-current.efi",
++			expectedNext:          "Talos-current.efi",
++		},
++		{
++			name: "manual_selection_uses_selected_entry",
++			existingFiles: []string{
++				"/EFI/Linux/Talos-old.efi",
++				"/EFI/Linux/Talos-current.efi",
++			},
++			defaultEntry:          "Talos-current.efi",
++			selectedEntry:         "Talos-old.efi",
++			loaderDefault:         "Talos-current*",
++			efiVariablesAvailable: true,
++			expectedBooted:        "Talos-old.efi",
++			expectedNext:          "Talos-current.efi",
++		},
++		{
++			name: "unavailable_efi_variables_fall_back_to_loader_conf",
++			existingFiles: []string{
++				"/EFI/Linux/Talos-old.efi",
++				"/EFI/Linux/Talos-current.efi",
++			},
++			defaultEntry:          "Talos-old.efi",
++			selectedEntry:         "Talos-old.efi",
++			loaderDefault:         "Talos-current*",
++			efiVariablesAvailable: false,
++			expectedBooted:        "Talos-current.efi",
++			expectedNext:          "Talos-current.efi",
++		},
++		{
++			name: "single_uki_fallback",
++			existingFiles: []string{
++				"/EFI/Linux/Talos-current.efi",
++			},
++			loaderDefault:         "Talos-missing*",
++			efiVariablesAvailable: false,
++			expectedBooted:        "Talos-current.efi",
++			expectedNext:          "Talos-current.efi",
++		},
++	} {
++		t.Run(testData.name, func(t *testing.T) {
++			t.Parallel()
++
++			bootedEntry, bootedOK, nextBootEntry, nextBootOK := sdboot.ResolveBootEntries(
++				testData.existingFiles,
++				testData.defaultEntry,
++				testData.selectedEntry,
++				testData.oneShotEntry,
++				testData.rebootReason,
++				testData.loaderDefault,
++				testData.efiVariablesAvailable,
++			)
++
++			require.True(t, bootedOK)
++			require.Equal(t, testData.expectedBooted, bootedEntry)
++			require.True(t, nextBootOK)
++			require.Equal(t, testData.expectedNext, nextBootEntry)
++		})
++	}
 +}
 +
  func TestFindMatchingUKIFile(t *testing.T) {

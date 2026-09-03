@@ -76,10 +76,12 @@ fi
 emit_output talos_version "${target_version}"
 
 talos_updated=false
+ignored_talos_version=
 if [[ "${target_version}" != "${TALOS_VERSION}" ]]; then
   if version_is_newer "${target_version}" "${TALOS_VERSION}" || [[ "${force_update}" == "true" ]]; then
     talos_updated=true
   else
+    ignored_talos_version="${target_version}"
     target_version="${TALOS_VERSION}"
     emit_output talos_version "${target_version}"
   fi
@@ -87,10 +89,12 @@ fi
 
 if [[ "${target_version}" == "${TALOS_VERSION}" && "${talos_updated}" == "false" &&
       "${force_update}" != "true" ]]; then
-  printf 'already tracking latest stable Talos release %s\n' "${TALOS_VERSION}"
-elif [[ "${talos_updated}" == "false" && "${force_update}" != "true" ]]; then
-  printf 'ignoring Talos release %s because current pin %s is newer\n' \
-    "${target_version}" "${TALOS_VERSION}"
+  if [[ -n "${ignored_talos_version}" ]]; then
+    printf 'ignoring Talos release %s because current pin %s is newer\n' \
+      "${ignored_talos_version}" "${TALOS_VERSION}"
+  else
+    printf 'already tracking latest stable Talos release %s\n' "${TALOS_VERSION}"
+  fi
 fi
 
 if [[ ! "${target_asahi_tag}" =~ ^asahi-[0-9]+\.[0-9]+\.[0-9]+-[0-9]+$ ]]; then
@@ -200,6 +204,11 @@ if [[ "${asahi_updated}" == "true" || "${force_update}" == "true" ]]; then
   trap - EXIT
 fi
 
+build_revision=1
+if [[ "${talos_updated}" == "false" ]]; then
+  build_revision=$((BUILD_REVISION + 1))
+fi
+
 temporary_file="$(mktemp "${versions_file}.XXXXXX")"
 trap 'rm -f "${temporary_file}"' EXIT
 
@@ -215,6 +224,7 @@ awk \
   -v mainline_kernel_version="${mainline_kernel_version}" \
   -v iscsi_tools_image="${iscsi_tools_image}" \
   -v util_linux_tools_image="${util_linux_tools_image}" \
+  -v build_revision="${build_revision}" \
   '
     /^TALOS_VERSION=/ { print "TALOS_VERSION=" talos_version; next }
     /^TALOS_SHA=/ { print "TALOS_SHA=" talos_sha; next }
@@ -231,7 +241,7 @@ awk \
     }
     /^ISCSI_TOOLS_IMAGE=/ { print "ISCSI_TOOLS_IMAGE=" iscsi_tools_image; next }
     /^UTIL_LINUX_TOOLS_IMAGE=/ { print "UTIL_LINUX_TOOLS_IMAGE=" util_linux_tools_image; next }
-    /^BUILD_REVISION=/ { print "BUILD_REVISION=1"; next }
+    /^BUILD_REVISION=/ { print "BUILD_REVISION=" build_revision; next }
     { print }
   ' "${versions_file}" >"${temporary_file}"
 
