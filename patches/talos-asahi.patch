@@ -48,14 +48,14 @@ diff --git a/hack/modules-arm64.txt b/hack/modules-arm64.txt
 index 1cae2f1..c2404f5 100644
 --- a/hack/modules-arm64.txt
 +++ b/hack/modules-arm64.txt
-@@ -1,11 +1,10 @@
--kernel/arch/arm64/lib/xor-neon.ko
+@@ -1,11 +1,12 @@
+ kernel/arch/arm64/lib/xor-neon.ko
  kernel/crypto/async_tx/async_memcpy.ko
  kernel/crypto/async_tx/async_pq.ko
  kernel/crypto/async_tx/async_raid6_recov.ko
  kernel/crypto/async_tx/async_tx.ko
  kernel/crypto/async_tx/async_xor.ko
--kernel/crypto/hkdf.ko
+ kernel/crypto/hkdf.ko
  kernel/crypto/xor.ko
  kernel/drivers/acpi/ac.ko
  kernel/drivers/acpi/battery.ko
