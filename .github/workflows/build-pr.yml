@@ -1,0 +1,64 @@
+name: Build pull request images
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: build (${{ matrix.kernel_flavor }})
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix:
+        kernel_flavor:
+          - asahi
+          - mainline
+          - mainline-4k
+    env:
+      LOCAL_REGISTRY: localhost:5000
+      PROGRESS: plain
+      KERNEL_FLAVOR: ${{ matrix.kernel_flavor }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Set up Buildx with local registry access
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: network=host
+          buildkitd-config-inline: |
+            [registry."localhost:5000"]
+              http = true
+              insecure = true
+
+      - name: Start ephemeral build registry
+        run: |
+          docker run --detach --rm --name talos-asahi-registry \
+            --publish 127.0.0.1:5000:5000 registry:2
+          for _ in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:5000/v2/ >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          exit 1
+
+      - name: Build installer and boot bundle
+        run: ./scripts/build.sh
+
+      - name: Upload boot bundles
+        uses: actions/upload-artifact@v4
+        with:
+          name: talos-asahi-pr-${{ matrix.kernel_flavor }}
+          path: |
+            _out/talos-asahi-*-esp.zip
+            _out/SHA256SUMS
+          if-no-files-found: error
+          retention-days: 30
