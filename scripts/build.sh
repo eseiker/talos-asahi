@@ -35,6 +35,13 @@ if [[ -n "${KERNEL_CACHE_IMAGE:-}" ]]; then
     "--cache-from=type=registry,ref=${KERNEL_CACHE_IMAGE}"
     "--cache-to=type=registry,ref=${KERNEL_CACHE_IMAGE},mode=max,oci-mediatypes=true,image-manifest=true,ignore-error=true"
   )
+elif [[ -n "${KERNEL_CACHE_DIR:-}" ]]; then
+  kernel_cache_new="${KERNEL_CACHE_DIR}.new"
+  rm -rf "${kernel_cache_new}"
+  if [[ -f "${KERNEL_CACHE_DIR}/index.json" ]]; then
+    kernel_target_args+=("--cache-from=type=local,src=${KERNEL_CACHE_DIR}")
+  fi
+  kernel_target_args+=("--cache-to=type=local,dest=${kernel_cache_new},mode=max")
 fi
 
 printf 'building %s kernel image %s\n' "${KERNEL_FLAVOR}" "${kernel_image}"
@@ -42,6 +49,10 @@ printf 'building %s kernel image %s\n' "${KERNEL_FLAVOR}" "${kernel_image}"
   PLATFORM=linux/arm64 \
   PROGRESS="${PROGRESS}" \
   TARGET_ARGS="${kernel_target_args[*]}"
+if [[ -n "${kernel_cache_new:-}" ]]; then
+  rm -rf "${KERNEL_CACHE_DIR}"
+  mv "${kernel_cache_new}" "${KERNEL_CACHE_DIR}"
+fi
 docker push "${kernel_image}"
 
 printf 'building patched Talos installer base %s\n' "${installer_base_image}"
@@ -162,8 +173,11 @@ printf '# systemd-boot configuration\n\ndefault %s\ntimeout 0\neditor no\n' \
 cat >"${OUT_DIR}/build.env" <<EOF
 TALOS_VERSION=${TALOS_VERSION}
 TALOS_SHA=${TALOS_SHA}
+ASAHI_KERNEL_TAG=${ASAHI_KERNEL_TAG}
 ASAHI_KERNEL_VERSION=${ASAHI_KERNEL_VERSION}
 ASAHI_KERNEL_SHA=${ASAHI_KERNEL_SHA}
+ASAHI_KERNEL_SHA256=${ASAHI_KERNEL_SHA256}
+ASAHI_KERNEL_SHA512=${ASAHI_KERNEL_SHA512}
 MAINLINE_KERNEL_VERSION=${MAINLINE_KERNEL_VERSION}
 KERNEL_FLAVOR=${KERNEL_FLAVOR}
 KERNEL_VERSION=${KERNEL_VERSION}

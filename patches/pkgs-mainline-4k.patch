@@ -1,18 +1,13 @@
 diff --git a/kernel/build/pkg.yaml b/kernel/build/pkg.yaml
+index b232e4c..43e223a 100644
 --- a/kernel/build/pkg.yaml
 +++ b/kernel/build/pkg.yaml
-@@ -19,3 +19,5 @@ steps:
-           # Mainline 6.18 has the boot-critical Apple SoC support needed by
--          # the Mac14,13. Keep those drivers built-in and use 16 KiB pages.
-+          # the Mac14,13. Keep those drivers built-in and retain Talos' 4 KiB
-+          # page size. Apple DART selects identity domains where its 16 KiB
-+          # IOMMU granule cannot represent 4 KiB kernel pages.
-           scripts/config \
-@@ -46,5 +48,5 @@ steps:
-             --enable SERIAL_SAMSUNG \
-             --enable SERIAL_SAMSUNG_CONSOLE \
--            --disable ARM64_4K_PAGES \
--            --enable ARM64_16K_PAGES \
-+            --enable ARM64_4K_PAGES \
-+            --disable ARM64_16K_PAGES \
-             --disable ARM64_64K_PAGES
+@@ -15,7 +15,7 @@ steps:
+         cp -v /pkg/certs/* certs/
+       - |
+         if [[ "${ARCH}" == "arm64" ]]; then
+-          /pkg/configure-mainline-arm64.sh /src 16k
++          /pkg/configure-mainline-arm64.sh /src 4k
+         fi
+       - |
+         cd /src

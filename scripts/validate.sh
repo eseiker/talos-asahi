@@ -18,6 +18,10 @@ trap cleanup EXIT
 KERNEL_FLAVOR=asahi "${root}/scripts/prepare-sources.sh" "${validation_root}/asahi"
 KERNEL_FLAVOR=mainline "${root}/scripts/prepare-sources.sh" "${validation_root}/mainline"
 KERNEL_FLAVOR=mainline-4k "${root}/scripts/prepare-sources.sh" "${validation_root}/mainline-4k"
+"${root}/scripts/validate-kernel-configs.sh" \
+  "${validation_root}/asahi/pkgs" \
+  "${validation_root}/mainline/pkgs" \
+  "${validation_root}/mainline-4k/pkgs"
 
 docker run --rm \
   -v "${validation_root}/asahi/talos:/src" \

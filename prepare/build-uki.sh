@@ -32,7 +32,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-cmdline="talos.platform=metal console=ttyAMA0 console=tty0 consoleblank=0 nvme_core.io_timeout=4294967295 rdinit=/init talos_asahi.target=${target_uki}"
+cmdline="talos.platform=metal console=ttyAMA0 console=tty0 nvme_core.io_timeout=4294967295 rdinit=/init talos_asahi.target=${target_uki}"
 printf '%s\000' "$cmdline" >"$work_dir/cmdline"
 
 # Keep the source UKI's .osrel section byte-for-byte.  Replacing it with a
