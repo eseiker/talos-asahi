@@ -13,10 +13,20 @@ mkdir -p "${destination}"
 clone_pinned https://github.com/siderolabs/talos.git "${TALOS_SHA}" "${destination}/talos"
 clone_pinned https://github.com/siderolabs/pkgs.git "${PKGS_SHA}" "${destination}/pkgs"
 
-apply_patch_checked "${destination}/talos" "${root}/patches/talos-asahi.patch"
+talos_patch="${root}/patches/talos-asahi.patch"
+pkgs_asahi_patch="${root}/patches/pkgs-asahi.patch"
+
+case "${TALOS_VERSION}" in
+  v1.13.*)
+    talos_patch="${root}/patches/talos-asahi-v1.13.patch"
+    pkgs_asahi_patch="${root}/patches/pkgs-asahi-v1.13.patch"
+    ;;
+esac
+
+apply_patch_checked "${destination}/talos" "${talos_patch}"
 case "${KERNEL_FLAVOR}" in
   asahi)
-    apply_patch_checked "${destination}/pkgs" "${root}/patches/pkgs-asahi.patch"
+    apply_patch_checked "${destination}/pkgs" "${pkgs_asahi_patch}"
     if [[ ! "${ASAHI_KERNEL_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ||
           ! "${ASAHI_KERNEL_SHA}" =~ ^[0-9a-f]{40}$ ||
           ! "${ASAHI_KERNEL_SHA256}" =~ ^[0-9a-f]{64}$ ||
