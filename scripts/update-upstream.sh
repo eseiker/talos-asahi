@@ -321,6 +321,12 @@ emit_output mainline_kernel_version "${mainline_kernel_version}"
 emit_output iscsi_tools_image "${iscsi_tools_image}"
 emit_output util_linux_tools_image "${util_linux_tools_image}"
 
-printf 'updated pins: Talos %s (%s), pkgs %s, Asahi Linux %s (%s), Linux %s, Longhorn extensions %s and %s\n' \
-  "${target_version}" "${talos_sha}" "${pkgs_sha}" "${target_asahi_tag}" "${asahi_sha}" "${mainline_kernel_version}" \
-  "${iscsi_tools_image}" "${util_linux_tools_image}"
+if [[ "${track_asahi_updates}" == "true" ]]; then
+  printf 'updated pins: Talos %s (%s), pkgs %s, Asahi Linux %s (%s), Linux %s, Longhorn extensions %s and %s\n' \
+    "${target_version}" "${talos_sha}" "${pkgs_sha}" "${target_asahi_tag}" "${asahi_sha}" "${mainline_kernel_version}" \
+    "${iscsi_tools_image}" "${util_linux_tools_image}"
+else
+  printf 'updated pins: Talos %s (%s), pkgs %s, Linux %s, Longhorn extensions %s and %s\n' \
+    "${target_version}" "${talos_sha}" "${pkgs_sha}" "${mainline_kernel_version}" \
+    "${iscsi_tools_image}" "${util_linux_tools_image}"
+fi
