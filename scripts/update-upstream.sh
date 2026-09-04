@@ -8,7 +8,7 @@ versions_file="${VERSIONS_FILE:-${root}/versions.env}"
 # shellcheck disable=SC1090
 source "${versions_file}"
 
-for command in gh curl jq awk sed base64; do
+for command in gh curl jq awk sed base64 sort; do
   if ! command -v "${command}" >/dev/null 2>&1; then
     printf 'required command is missing: %s\n' "${command}" >&2
     exit 1
@@ -47,6 +47,45 @@ version_is_newer() {
   fi
 }
 
+discover_talos_versions() {
+  local version
+  local -a versions=()
+
+  while IFS= read -r version; do
+    if [[ "${version}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] &&
+      version_is_newer "${version}" "${TALOS_VERSION}"; then
+      versions+=("${version}")
+    fi
+  done < <(
+    gh api --paginate "repos/siderolabs/talos/releases?per_page=100" \
+      --jq '.[] | select(.draft == false and .prerelease == false) | .tag_name'
+  )
+
+  if ((${#versions[@]} == 0)); then
+    printf '[]\n'
+    return
+  fi
+
+  printf '%s\n' "${versions[@]}" |
+    sort --version-sort --unique |
+    jq --raw-input --slurp --compact-output 'split("\n") | map(select(length > 0))'
+}
+
+if [[ "${DISCOVER_TALOS_VERSIONS:-false}" == "true" ]]; then
+  talos_versions="$(discover_talos_versions)"
+  emit_output talos_versions "${talos_versions}"
+
+  if [[ "${talos_versions}" == "[]" ]]; then
+    emit_output has_updates false
+    printf 'no newer stable Talos releases found after %s\n' "${TALOS_VERSION}"
+  else
+    emit_output has_updates true
+    printf 'newer stable Talos releases after %s: %s\n' "${TALOS_VERSION}" "${talos_versions}"
+  fi
+
+  exit 0
+fi
+
 target_version="${TARGET_TALOS_VERSION:-$(gh api repos/siderolabs/talos/releases/latest --jq .tag_name)}"
 
 if [[ ! "${target_version}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
@@ -58,7 +97,7 @@ emit_output talos_version "${target_version}"
 
 if [[ "${target_version}" == "${TALOS_VERSION}" && "${FORCE_UPDATE:-false}" != "true" ]]; then
   emit_output updated false
-  printf 'already tracking latest stable Talos release %s\n' "${TALOS_VERSION}"
+  printf 'already tracking Talos release %s\n' "${TALOS_VERSION}"
 
   exit 0
 fi
