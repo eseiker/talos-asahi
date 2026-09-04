@@ -425,20 +425,28 @@ atomic installation overlay. The regular and Longhorn installer OCI archives
 and `build.env` metadata remain available only in the short-lived Actions
 artifacts. The repository itself does not track a binary output directory.
 
-`Track upstream releases` runs daily and can also be dispatched manually.
-It resolves the latest stable Talos release and downstream AsahiLinux
-`asahi-X.Y.Z-N` kernel tag. The tag's commit and archive checksums are pinned
-for reproducibility.
-Either upstream changing triggers an update. For Talos updates, the workflow
-also extracts the matching pkgs commit, mainline kernel version, and Longhorn
-extension references. It resets `BUILD_REVISION=1` for a new Talos release and
-increments it for Asahi-only rebuilds, then pushes a unique
-`automation/talos-vX.Y.Z-asahi-X.Y.Z-SHA` branch and
-dispatches artifact-only Asahi, mainline 16K, and mainline 4K builds. The
-workflow also tries to open a draft pull request; repositories which keep
-GitHub Actions pull request creation disabled still get the update branch and
-test builds, and can open the pull request manually. It never publishes
-images, moves `latest`, or creates a release tag automatically.
+`Track upstream releases` runs daily from the default branch and can also be
+dispatched manually. It checks `release-1.13` and `release-1.14` independently.
+For each branch, it selects only stable Talos `vX.Y.Z` tags from that branch's
+existing `vX.Y` release line, so a newer minor release cannot advance an older
+maintenance branch.
+
+For Talos updates, the workflow also extracts the matching pkgs commit,
+mainline kernel version, and Longhorn extension references. `release-1.14`
+additionally tracks the latest stable downstream AsahiLinux
+`asahi-X.Y.Z-N` tag and pins its commit and archive checksums.
+`release-1.13`, which retains the older pin format from
+`v1.13.9-asahi.10`, tracks Talos patch releases without changing its Asahi
+kernel.
+
+The tracker resets `BUILD_REVISION=1` for a Talos patch release and increments
+it for Asahi-only rebuilds. It pushes a unique update branch below the matching
+release line, dispatches artifact-only Asahi, mainline 16K, and mainline 4K
+builds, and tries to open a draft pull request back to that release branch.
+Repositories which keep GitHub Actions pull request creation disabled still
+get the update branch and test builds, and can open the pull request manually.
+The tracker never publishes images, moves `latest`, or creates a release tag
+automatically.
 
 For a release, update `versions.env`, make sure the patches still apply, bump
 `BUILD_REVISION` when appropriate, and push the exact computed tag. For the

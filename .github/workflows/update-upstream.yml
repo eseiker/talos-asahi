@@ -15,55 +15,56 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  discover:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
-    outputs:
-      has_updates: ${{ steps.versions.outputs.has_updates }}
-      talos_versions: ${{ steps.versions.outputs.talos_versions }}
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v5
-
-      - name: Discover newer stable Talos releases
-        id: versions
-        env:
-          DISCOVER_TALOS_VERSIONS: true
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: ./scripts/update-upstream.sh
-
   update:
-    needs: discover
-    if: needs.discover.outputs.has_updates == 'true'
+    name: update (${{ matrix.release_branch }})
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
-        talos_version: ${{ fromJSON(needs.discover.outputs.talos_versions) }}
+        include:
+          - release_branch: release-1.13
+            track_asahi_updates: false
+          - release_branch: release-1.14
+            track_asahi_updates: true
 
     steps:
-      - name: Check out repository
+      - name: Check out tracker
         uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          path: tracker
+          persist-credentials: false
 
-      - name: Resolve latest Talos, pkgs, and Asahi pins
+      - name: Check out release branch
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ matrix.release_branch }}
+          path: release
+
+      - name: Resolve latest release-line pins
         id: update
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TARGET_TALOS_VERSION: ${{ matrix.talos_version }}
-        run: ./scripts/update-upstream.sh
+          TRACK_ASAHI_UPDATES: ${{ matrix.track_asahi_updates }}
+          VERSIONS_FILE: ${{ github.workspace }}/release/versions.env
+        run: ./tracker/scripts/update-upstream.sh
 
       - name: Create update branch
         if: steps.update.outputs.updated == 'true'
         id: branch
+        working-directory: release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_BRANCH: ${{ matrix.release_branch }}
           TALOS_VERSION: ${{ steps.update.outputs.talos_version }}
           ASAHI_KERNEL_TAG: ${{ steps.update.outputs.asahi_kernel_tag }}
           ASAHI_KERNEL_SHA: ${{ steps.update.outputs.asahi_kernel_sha }}
         run: |
-          branch="automation/talos-${TALOS_VERSION}-${ASAHI_KERNEL_TAG}-${ASAHI_KERNEL_SHA:0:8}"
+          branch="automation/${RELEASE_BRANCH}/talos-${TALOS_VERSION}"
+          if [[ -n "${ASAHI_KERNEL_TAG}" ]]; then
+            branch="${branch}-${ASAHI_KERNEL_TAG}-${ASAHI_KERNEL_SHA:0:8}"
+          fi
           echo "name=${branch}" >>"${GITHUB_OUTPUT}"
 
           existing_pr="$(gh pr list --state all --head "${branch}" --json url --jq '.[0].url // empty')"
@@ -84,7 +85,11 @@ jobs:
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git switch --create "${branch}"
           git add versions.env
-          git commit -m "build: track Talos ${TALOS_VERSION} and ${ASAHI_KERNEL_TAG}"
+          commit_message="build: track Talos ${TALOS_VERSION}"
+          if [[ -n "${ASAHI_KERNEL_TAG}" ]]; then
+            commit_message="${commit_message} and ${ASAHI_KERNEL_TAG}"
+          fi
+          git commit -m "${commit_message}"
           git push origin "HEAD:refs/heads/${branch}"
           echo "created=true" >>"${GITHUB_OUTPUT}"
           echo "needs_pull_request=true" >>"${GITHUB_OUTPUT}"
@@ -108,6 +113,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           UPDATE_BRANCH: ${{ steps.branch.outputs.name }}
+          RELEASE_BRANCH: ${{ matrix.release_branch }}
           TALOS_VERSION: ${{ steps.update.outputs.talos_version }}
           TALOS_SHA: ${{ steps.update.outputs.talos_sha }}
           PKGS_SHA: ${{ steps.update.outputs.pkgs_sha }}
@@ -115,17 +121,27 @@ jobs:
           ASAHI_KERNEL_SHA: ${{ steps.update.outputs.asahi_kernel_sha }}
           MAINLINE_KERNEL_VERSION: ${{ steps.update.outputs.mainline_kernel_version }}
         run: |
+          title="build: track Talos ${TALOS_VERSION}"
+          if [[ -n "${ASAHI_KERNEL_TAG}" ]]; then
+            title="${title} and ${ASAHI_KERNEL_TAG}"
+          fi
+
+          asahi_summary=
+          if [[ -n "${ASAHI_KERNEL_TAG}" ]]; then
+            asahi_summary="- Asahi kernel: \`${ASAHI_KERNEL_TAG}\` (\`${ASAHI_KERNEL_SHA}\`)"
+          fi
+
           gh pr create \
             --draft \
-            --base main \
+            --base "${RELEASE_BRANCH}" \
             --head "${UPDATE_BRANCH}" \
-            --title "build: track Talos ${TALOS_VERSION} and ${ASAHI_KERNEL_TAG}" \
+            --title "${title}" \
             --body "$(printf '%s\n' \
-              'Automated upstream release update.' \
+              "Automated upstream update for \`${RELEASE_BRANCH}\`." \
               '' \
               "- Talos: \`${TALOS_VERSION}\` (\`${TALOS_SHA}\`)" \
               "- pkgs: \`${PKGS_SHA}\`" \
-              "- Asahi kernel: \`${ASAHI_KERNEL_TAG}\` (\`${ASAHI_KERNEL_SHA}\`)" \
+              "${asahi_summary}" \
               "- mainline kernel: \`${MAINLINE_KERNEL_VERSION}\`" \
               '- build revision reset to `1` for Talos updates and incremented for Asahi-only rebuilds' \
               '' \
@@ -140,14 +156,18 @@ jobs:
         if: steps.update.outputs.updated == 'true'
         env:
           UPDATE_BRANCH: ${{ steps.branch.outputs.name }}
+          RELEASE_BRANCH: ${{ matrix.release_branch }}
           TALOS_VERSION: ${{ steps.update.outputs.talos_version }}
           ASAHI_KERNEL_TAG: ${{ steps.update.outputs.asahi_kernel_tag }}
         run: |
           {
             echo "## Upstream update"
             echo
+            echo "- Release branch: \`${RELEASE_BRANCH}\`"
             echo "- Talos: \`${TALOS_VERSION}\`"
-            echo "- Asahi kernel: \`${ASAHI_KERNEL_TAG}\`"
+            if [[ -n "${ASAHI_KERNEL_TAG}" ]]; then
+              echo "- Asahi kernel: \`${ASAHI_KERNEL_TAG}\`"
+            fi
             echo "- Branch: \`${UPDATE_BRANCH}\`"
             if [[ "${{ steps.branch.outputs.created }}" == "true" ]]; then
               echo "- Asahi, mainline 16K, and mainline 4K test builds dispatched"

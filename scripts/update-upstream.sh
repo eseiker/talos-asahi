@@ -62,77 +62,73 @@ latest_stable_asahi_tag() {
     tail -n 1
 }
 
-discover_talos_versions() {
-  local version release_versions
-  local -a versions=()
+latest_stable_talos_tag() {
+  local talos_series="$1"
 
-  if ! release_versions="$(
-    gh api --paginate "repos/siderolabs/talos/releases?per_page=100" \
-      --jq '.[] | select(.draft == false and .prerelease == false) | .tag_name'
-  )"; then
+  if ! gh api --paginate "repos/siderolabs/talos/releases?per_page=100" \
+    --jq '.[] | select(.draft == false and .prerelease == false) | .tag_name' |
+    sed -nE "s/^(v${talos_series#v}\.[0-9]+)$/\1/p" |
+    sort --version-sort |
+    tail -n 1; then
     printf 'failed to list Talos releases\n' >&2
     return 1
   fi
-
-  while IFS= read -r version; do
-    if [[ "${version}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] &&
-      version_is_newer "${version}" "${TALOS_VERSION}"; then
-      versions+=("${version}")
-    fi
-  done <<<"${release_versions}"
-
-  if ((${#versions[@]} == 0)); then
-    printf '[]\n'
-    return
-  fi
-
-  printf '%s\n' "${versions[@]}" |
-    sort --version-sort --unique |
-    jq --raw-input --slurp --compact-output 'split("\n") | map(select(length > 0))'
 }
 
-if [[ "${DISCOVER_TALOS_VERSIONS:-false}" == "true" ]]; then
-  talos_versions="$(discover_talos_versions)"
+talos_series="${TALOS_VERSION%.*}"
+track_asahi_updates="${TRACK_ASAHI_UPDATES:-true}"
 
-  if [[ "${talos_versions}" == "[]" ]]; then
-    candidate_asahi_tag="$(latest_stable_asahi_tag)"
+if [[ ! "${talos_series}" =~ ^v[0-9]+\.[0-9]+$ ]]; then
+  printf 'invalid current Talos release tag: %s\n' "${TALOS_VERSION}" >&2
+  exit 1
+fi
 
-    if [[ ! "${candidate_asahi_tag}" =~ ^asahi-[0-9]+\.[0-9]+\.[0-9]+-[0-9]+$ ]]; then
-      printf 'failed to resolve latest stable Asahi kernel tag\n' >&2
+if [[ "${track_asahi_updates}" != "true" && "${track_asahi_updates}" != "false" ]]; then
+  printf 'TRACK_ASAHI_UPDATES must be true or false\n' >&2
+  exit 1
+fi
+
+if [[ "${track_asahi_updates}" == "true" ]]; then
+  for variable in \
+    ASAHI_KERNEL_TAG \
+    ASAHI_KERNEL_VERSION \
+    ASAHI_KERNEL_SHA \
+    ASAHI_KERNEL_SHA256 \
+    ASAHI_KERNEL_SHA512; do
+    if [[ -z "${!variable:-}" ]]; then
+      printf '%s is required when tracking Asahi kernel updates\n' "${variable}" >&2
       exit 1
     fi
-
-    candidate_asahi_sha="$(gh api "repos/AsahiLinux/linux/commits/${candidate_asahi_tag}" --jq .sha)"
-
-    if { [[ "${candidate_asahi_tag}" != "${ASAHI_KERNEL_TAG}" ]] &&
-      version_tag_is_newer "${candidate_asahi_tag}" "${ASAHI_KERNEL_TAG}"; } ||
-      [[ "${candidate_asahi_sha}" != "${ASAHI_KERNEL_SHA}" ]]; then
-      talos_versions="$(jq --null-input --compact-output --arg version "${TALOS_VERSION}" '[$version]')"
-    fi
-  fi
-
-  emit_output talos_versions "${talos_versions}"
-
-  if [[ "${talos_versions}" == "[]" ]]; then
-    emit_output has_updates false
-    printf 'no newer stable Talos releases or Asahi updates found after %s\n' "${TALOS_VERSION}"
-  else
-    emit_output has_updates true
-    printf 'stable update targets after %s: %s\n' "${TALOS_VERSION}" "${talos_versions}"
-  fi
-
-  exit 0
+  done
 fi
-target_version="${TARGET_TALOS_VERSION:-$(gh api repos/siderolabs/talos/releases/latest --jq .tag_name)}"
-force_update="${FORCE_UPDATE:-false}"
-target_asahi_tag="${TARGET_ASAHI_TAG:-}"
 
-if [[ -z "${target_asahi_tag}" ]]; then
+target_version="${TARGET_TALOS_VERSION:-}"
+if [[ -z "${target_version}" ]]; then
+  if ! target_version="$(latest_stable_talos_tag "${talos_series}")"; then
+    exit 1
+  fi
+fi
+
+if [[ -z "${target_version}" ]]; then
+  printf 'failed to resolve a stable Talos release for %s\n' "${talos_series}" >&2
+  exit 1
+fi
+
+force_update="${FORCE_UPDATE:-false}"
+target_asahi_tag="${TARGET_ASAHI_TAG:-${ASAHI_KERNEL_TAG:-}}"
+
+if [[ "${track_asahi_updates}" == "true" && -z "${TARGET_ASAHI_TAG:-}" ]]; then
   target_asahi_tag="$(latest_stable_asahi_tag)"
 fi
 
 if [[ ! "${target_version}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
   printf 'refusing non-stable Talos release tag: %s\n' "${target_version}" >&2
+  exit 1
+fi
+
+if [[ "${target_version%.*}" != "${talos_series}" ]]; then
+  printf 'refusing Talos release %s outside tracked series %s\n' \
+    "${target_version}" "${talos_series}" >&2
   exit 1
 fi
 
@@ -160,53 +156,58 @@ if [[ "${target_version}" == "${TALOS_VERSION}" && "${talos_updated}" == "false"
   fi
 fi
 
-if [[ ! "${target_asahi_tag}" =~ ^asahi-[0-9]+\.[0-9]+\.[0-9]+-[0-9]+$ ]]; then
-  printf 'failed to resolve latest stable Asahi kernel tag\n' >&2
-  exit 1
-fi
-
-asahi_sha="$(gh api "repos/AsahiLinux/linux/commits/${target_asahi_tag}" --jq .sha)"
-asahi_makefile="$(gh api "repos/AsahiLinux/linux/contents/Makefile?ref=${asahi_sha}" --jq .content | base64 --decode)"
-asahi_version="$(
-  awk '
-    /^VERSION = / { major=$3 }
-    /^PATCHLEVEL = / { minor=$3 }
-    /^SUBLEVEL = / { patch=$3 }
-    END {
-      if (major ~ /^[0-9]+$/ && minor ~ /^[0-9]+$/ && patch ~ /^[0-9]+$/) {
-        printf "%s.%s.%s", major, minor, patch
-      }
-    }
-  ' <<<"${asahi_makefile}"
-)"
-
-if [[ ! "${asahi_version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ||
-      ! "${asahi_sha}" =~ ^[0-9a-f]{40}$ ||
-      "${target_asahi_tag}" != "asahi-${asahi_version}-"* ]]; then
-  printf 'invalid stable Asahi kernel tag %s\n' "${target_asahi_tag}" >&2
-  exit 1
-fi
-
+asahi_version="${ASAHI_KERNEL_VERSION}"
+asahi_sha="${ASAHI_KERNEL_SHA}"
+asahi_sha256="${ASAHI_KERNEL_SHA256:-}"
+asahi_sha512="${ASAHI_KERNEL_SHA512:-}"
 asahi_updated=false
-if [[ "${target_asahi_tag}" != "${ASAHI_KERNEL_TAG}" ]]; then
-  if version_tag_is_newer "${target_asahi_tag}" "${ASAHI_KERNEL_TAG}" ||
-    [[ "${force_update}" == "true" ]]; then
+if [[ "${track_asahi_updates}" == "true" ]]; then
+  if [[ ! "${target_asahi_tag}" =~ ^asahi-[0-9]+\.[0-9]+\.[0-9]+-[0-9]+$ ]]; then
+    printf 'failed to resolve latest stable Asahi kernel tag\n' >&2
+    exit 1
+  fi
+
+  asahi_sha="$(gh api "repos/AsahiLinux/linux/commits/${target_asahi_tag}" --jq .sha)"
+  asahi_makefile="$(gh api "repos/AsahiLinux/linux/contents/Makefile?ref=${asahi_sha}" --jq .content | base64 --decode)"
+  asahi_version="$(
+    awk '
+      /^VERSION = / { major=$3 }
+      /^PATCHLEVEL = / { minor=$3 }
+      /^SUBLEVEL = / { patch=$3 }
+      END {
+        if (major ~ /^[0-9]+$/ && minor ~ /^[0-9]+$/ && patch ~ /^[0-9]+$/) {
+          printf "%s.%s.%s", major, minor, patch
+        }
+      }
+    ' <<<"${asahi_makefile}"
+  )"
+
+  if [[ ! "${asahi_version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ||
+        ! "${asahi_sha}" =~ ^[0-9a-f]{40}$ ||
+        "${target_asahi_tag}" != "asahi-${asahi_version}-"* ]]; then
+    printf 'invalid stable Asahi kernel tag %s\n' "${target_asahi_tag}" >&2
+    exit 1
+  fi
+
+  if [[ "${target_asahi_tag}" != "${ASAHI_KERNEL_TAG}" ]] &&
+    { version_tag_is_newer "${target_asahi_tag}" "${ASAHI_KERNEL_TAG}" ||
+      [[ "${force_update}" == "true" ]]; }; then
     asahi_updated=true
-  else
+  elif [[ "${target_asahi_tag}" != "${ASAHI_KERNEL_TAG}" ]]; then
     printf 'ignoring Asahi kernel %s because current pin %s is newer\n' \
       "${target_asahi_tag}" "${ASAHI_KERNEL_TAG}"
     target_asahi_tag="${ASAHI_KERNEL_TAG}"
     asahi_version="${ASAHI_KERNEL_VERSION}"
     asahi_sha="${ASAHI_KERNEL_SHA}"
+  elif [[ "${asahi_sha}" != "${ASAHI_KERNEL_SHA}" ]]; then
+    asahi_updated=true
   fi
-elif [[ "${asahi_sha}" != "${ASAHI_KERNEL_SHA}" ]]; then
-  asahi_updated=true
 fi
 
 if [[ "${talos_updated}" == "false" && "${asahi_updated}" == "false" &&
       "${force_update}" != "true" ]]; then
   emit_output updated false
-  printf 'already tracking Asahi kernel %s (%s)\n' "${ASAHI_KERNEL_TAG}" "${ASAHI_KERNEL_SHA}"
+  printf 'no newer upstream updates found for Talos series %s\n' "${talos_series}"
 
   exit 0
 fi
@@ -253,9 +254,8 @@ if [[ "${talos_updated}" == "true" || "${force_update}" == "true" ]]; then
   util_linux_tools_image="$(extension_image siderolabs/util-linux-tools)"
 fi
 
-asahi_sha256="${ASAHI_KERNEL_SHA256}"
-asahi_sha512="${ASAHI_KERNEL_SHA512}"
-if [[ "${asahi_updated}" == "true" || "${force_update}" == "true" ]]; then
+if [[ "${track_asahi_updates}" == "true" ]] &&
+  { [[ "${asahi_updated}" == "true" ]] || [[ "${force_update}" == "true" ]]; }; then
   asahi_archive="$(mktemp "${TMPDIR:-/tmp}/talos-asahi-kernel.XXXXXX.tar.gz")"
   trap 'rm -f "${asahi_archive}"' EXIT
   curl --fail --silent --show-error --location \
