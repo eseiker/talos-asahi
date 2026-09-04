@@ -55,17 +55,80 @@ version_tag_is_newer() {
     "$(printf '%s\n%s\n' "${candidate}" "${current}" | sort -V | tail -n 1)" == "${candidate}" ]]
 }
 
+latest_stable_asahi_tag() {
+  gh api --paginate "repos/AsahiLinux/linux/git/matching-refs/tags/asahi-" --jq '.[].ref' |
+    sed -nE 's#^refs/tags/(asahi-[0-9]+\.[0-9]+\.[0-9]+-[0-9]+)$#\1#p' |
+    sort -V |
+    tail -n 1
+}
+
+discover_talos_versions() {
+  local version release_versions
+  local -a versions=()
+
+  if ! release_versions="$(
+    gh api --paginate "repos/siderolabs/talos/releases?per_page=100" \
+      --jq '.[] | select(.draft == false and .prerelease == false) | .tag_name'
+  )"; then
+    printf 'failed to list Talos releases\n' >&2
+    return 1
+  fi
+
+  while IFS= read -r version; do
+    if [[ "${version}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] &&
+      version_is_newer "${version}" "${TALOS_VERSION}"; then
+      versions+=("${version}")
+    fi
+  done <<<"${release_versions}"
+
+  if ((${#versions[@]} == 0)); then
+    printf '[]\n'
+    return
+  fi
+
+  printf '%s\n' "${versions[@]}" |
+    sort --version-sort --unique |
+    jq --raw-input --slurp --compact-output 'split("\n") | map(select(length > 0))'
+}
+
+if [[ "${DISCOVER_TALOS_VERSIONS:-false}" == "true" ]]; then
+  talos_versions="$(discover_talos_versions)"
+
+  if [[ "${talos_versions}" == "[]" ]]; then
+    candidate_asahi_tag="$(latest_stable_asahi_tag)"
+
+    if [[ ! "${candidate_asahi_tag}" =~ ^asahi-[0-9]+\.[0-9]+\.[0-9]+-[0-9]+$ ]]; then
+      printf 'failed to resolve latest stable Asahi kernel tag\n' >&2
+      exit 1
+    fi
+
+    candidate_asahi_sha="$(gh api "repos/AsahiLinux/linux/commits/${candidate_asahi_tag}" --jq .sha)"
+
+    if { [[ "${candidate_asahi_tag}" != "${ASAHI_KERNEL_TAG}" ]] &&
+      version_tag_is_newer "${candidate_asahi_tag}" "${ASAHI_KERNEL_TAG}"; } ||
+      [[ "${candidate_asahi_sha}" != "${ASAHI_KERNEL_SHA}" ]]; then
+      talos_versions="$(jq --null-input --compact-output --arg version "${TALOS_VERSION}" '[$version]')"
+    fi
+  fi
+
+  emit_output talos_versions "${talos_versions}"
+
+  if [[ "${talos_versions}" == "[]" ]]; then
+    emit_output has_updates false
+    printf 'no newer stable Talos releases or Asahi updates found after %s\n' "${TALOS_VERSION}"
+  else
+    emit_output has_updates true
+    printf 'stable update targets after %s: %s\n' "${TALOS_VERSION}" "${talos_versions}"
+  fi
+
+  exit 0
+fi
 target_version="${TARGET_TALOS_VERSION:-$(gh api repos/siderolabs/talos/releases/latest --jq .tag_name)}"
 force_update="${FORCE_UPDATE:-false}"
 target_asahi_tag="${TARGET_ASAHI_TAG:-}"
 
 if [[ -z "${target_asahi_tag}" ]]; then
-  target_asahi_tag="$(
-    gh api --paginate "repos/AsahiLinux/linux/git/matching-refs/tags/asahi-" --jq '.[].ref' |
-      sed -nE 's#^refs/tags/(asahi-[0-9]+\.[0-9]+\.[0-9]+-[0-9]+)$#\1#p' |
-      sort -V |
-      tail -n 1
-  )"
+  target_asahi_tag="$(latest_stable_asahi_tag)"
 fi
 
 if [[ ! "${target_version}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then

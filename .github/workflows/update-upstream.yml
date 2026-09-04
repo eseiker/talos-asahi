@@ -15,9 +15,33 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  discover:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      has_updates: ${{ steps.versions.outputs.has_updates }}
+      talos_versions: ${{ steps.versions.outputs.talos_versions }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Discover newer stable Talos releases
+        id: versions
+        env:
+          DISCOVER_TALOS_VERSIONS: true
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./scripts/update-upstream.sh
+
   update:
+    needs: discover
+    if: needs.discover.outputs.has_updates == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        talos_version: ${{ fromJSON(needs.discover.outputs.talos_versions) }}
 
     steps:
       - name: Check out repository
@@ -27,6 +51,7 @@ jobs:
         id: update
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TARGET_TALOS_VERSION: ${{ matrix.talos_version }}
         run: ./scripts/update-upstream.sh
 
       - name: Create update branch
