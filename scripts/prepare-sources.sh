@@ -17,7 +17,6 @@ apply_patch_checked "${destination}/talos" "${root}/patches/talos-asahi.patch"
 sed -i \
   -e '\|kernel/arch/arm64/lib/xor-neon.ko|d' \
   -e '\|kernel/crypto/hkdf.ko|d' \
-  -e 's|kernel/crypto/xor.ko|kernel/lib/raid/xor/xor.ko|' \
   "${destination}/talos/hack/modules-arm64.txt"
 case "${KERNEL_FLAVOR}" in
   asahi)
@@ -30,6 +29,9 @@ case "${KERNEL_FLAVOR}" in
       exit 1
     fi
 
+    sed -i \
+      -e 's|kernel/crypto/xor.ko|kernel/lib/raid/xor/xor.ko|' \
+      "${destination}/talos/hack/modules-arm64.txt"
     sed -i \
       -e "s/ASAHI_KERNEL_VERSION/${ASAHI_KERNEL_VERSION}/" \
       -e "s/ASAHI_KERNEL_SHA256/${ASAHI_KERNEL_SHA256}/" \
