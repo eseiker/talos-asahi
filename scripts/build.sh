@@ -29,7 +29,7 @@ kernel_image_cache_file="${KERNEL_IMAGE_CACHE_FILE:-}"
 kernel_cache_input_hash=""
 if [[ -z "${kernel_image_cache_file}" && -n "${KERNEL_CACHE_DIR:-}" ]]; then
   kernel_image_cache_file="${KERNEL_CACHE_DIR}/kernel-image.tar"
-kernel_cache_input_hash="$(
+  kernel_cache_input_hash="$(
     {
       printf '%s\0' "${kernel_image}"
       cat \
@@ -201,11 +201,8 @@ printf '# systemd-boot configuration\n\ndefault %s\ntimeout 0\neditor no\n' \
 cat >"${OUT_DIR}/build.env" <<EOF
 TALOS_VERSION=${TALOS_VERSION}
 TALOS_SHA=${TALOS_SHA}
-ASAHI_KERNEL_TAG=${ASAHI_KERNEL_TAG}
 ASAHI_KERNEL_VERSION=${ASAHI_KERNEL_VERSION}
 ASAHI_KERNEL_SHA=${ASAHI_KERNEL_SHA}
-ASAHI_KERNEL_SHA256=${ASAHI_KERNEL_SHA256}
-ASAHI_KERNEL_SHA512=${ASAHI_KERNEL_SHA512}
 MAINLINE_KERNEL_VERSION=${MAINLINE_KERNEL_VERSION}
 KERNEL_FLAVOR=${KERNEL_FLAVOR}
 KERNEL_VERSION=${KERNEL_VERSION}

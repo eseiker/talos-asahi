@@ -14,31 +14,9 @@ clone_pinned https://github.com/siderolabs/talos.git "${TALOS_SHA}" "${destinati
 clone_pinned https://github.com/siderolabs/pkgs.git "${PKGS_SHA}" "${destination}/pkgs"
 
 apply_patch_checked "${destination}/talos" "${root}/patches/talos-asahi.patch"
-sed -i \
-  -e '\|kernel/arch/arm64/lib/xor-neon.ko|d' \
-  -e '\|kernel/crypto/hkdf.ko|d' \
-  -e 's|kernel/crypto/xor.ko|kernel/lib/raid/xor/xor.ko|' \
-  "${destination}/talos/hack/modules-arm64.txt"
 case "${KERNEL_FLAVOR}" in
   asahi)
     apply_patch_checked "${destination}/pkgs" "${root}/patches/pkgs-asahi.patch"
-    if [[ ! "${ASAHI_KERNEL_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ||
-          ! "${ASAHI_KERNEL_SHA}" =~ ^[0-9a-f]{40}$ ||
-          ! "${ASAHI_KERNEL_SHA256}" =~ ^[0-9a-f]{64}$ ||
-          ! "${ASAHI_KERNEL_SHA512}" =~ ^[0-9a-f]{128}$ ]]; then
-      printf 'invalid Asahi kernel pin in versions.env\n' >&2
-      exit 1
-    fi
-
-    sed -i \
-      -e "s/ASAHI_KERNEL_VERSION/${ASAHI_KERNEL_VERSION}/" \
-      -e "s/ASAHI_KERNEL_SHA256/${ASAHI_KERNEL_SHA256}/" \
-      -e "s/ASAHI_KERNEL_SHA512/${ASAHI_KERNEL_SHA512}/" \
-      -e "s/ASAHI_KERNEL_SHA/${ASAHI_KERNEL_SHA}/" \
-      "${destination}/pkgs/Pkgfile"
-    sed -i \
-      -e '/kernel\/drivers\/net\/ethernet\/stmicro\/stmmac\/stmmac-pci\.ko/a kernel/drivers/net/ethernet/stmicro/stmmac/stmmac_libpci.ko' \
-      "${destination}/talos/hack/modules-arm64.txt"
     ;;
   mainline)
     apply_patch_checked "${destination}/pkgs" "${root}/patches/pkgs-mainline.patch"
