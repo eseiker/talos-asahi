@@ -48,18 +48,23 @@ version_is_newer() {
 }
 
 discover_talos_versions() {
-  local version
+  local version release_versions
   local -a versions=()
+
+  if ! release_versions="$(
+    gh api --paginate "repos/siderolabs/talos/releases?per_page=100" \
+      --jq '.[] | select(.draft == false and .prerelease == false) | .tag_name'
+  )"; then
+    printf 'failed to list Talos releases\n' >&2
+    return 1
+  fi
 
   while IFS= read -r version; do
     if [[ "${version}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] &&
       version_is_newer "${version}" "${TALOS_VERSION}"; then
       versions+=("${version}")
     fi
-  done < <(
-    gh api --paginate "repos/siderolabs/talos/releases?per_page=100" \
-      --jq '.[] | select(.draft == false and .prerelease == false) | .tag_name'
-  )
+  done <<<"${release_versions}"
 
   if ((${#versions[@]} == 0)); then
     printf '[]\n'
