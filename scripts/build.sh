@@ -29,14 +29,16 @@ kernel_image_cache_file="${KERNEL_IMAGE_CACHE_FILE:-}"
 kernel_cache_input_hash=""
 if [[ -z "${kernel_image_cache_file}" && -n "${KERNEL_CACHE_DIR:-}" ]]; then
   kernel_image_cache_file="${KERNEL_CACHE_DIR}/kernel-image.tar"
-  kernel_cache_input_hash="$(
-    cat \
-      "${root}/versions.env" \
-      "${root}"/patches/pkgs-*.patch \
-      "${root}/scripts/lib.sh" \
-      "${root}/scripts/prepare-sources.sh" \
-      "${root}/scripts/build.sh" |
-      sha256sum | cut -d' ' -f1
+kernel_cache_input_hash="$(
+    {
+      printf '%s\0' "${kernel_image}"
+      cat \
+        "${root}/versions.env" \
+        "${root}"/patches/pkgs-*.patch \
+        "${root}/scripts/lib.sh" \
+        "${root}/scripts/prepare-sources.sh" \
+        "${root}/scripts/build.sh"
+    } | sha256sum | cut -d' ' -f1
   )"
   if [[ ! -f "${KERNEL_CACHE_DIR}/input-hash" ]] ||
     [[ "$(<"${KERNEL_CACHE_DIR}/input-hash")" != "${kernel_cache_input_hash}" ]]; then
