@@ -450,7 +450,7 @@ automatically.
 
 For a release, update `versions.env`, make sure the patches still apply, bump
 `BUILD_REVISION` when appropriate, and push the exact computed tag. For the
-current pins that tag is `v1.14.0-asahi.1`.
+current pins that tag is `v1.13.10-asahi.1`.
 
 ## Local validation and build
 
@@ -477,14 +477,17 @@ Docker Desktop commonly needs a registry address such as
 `host.docker.internal:5050` plus matching insecure-registry BuildKit settings.
 The CI workflow contains the known-good Linux builder configuration.
 
+Pull requests also build the Asahi, mainline 16K, and mainline 4K flavors in a
+dedicated read-only workflow. Each flavor reuses a compact kernel image cache
+isolated by pull request number and invalidated when its build inputs change.
+
 ## Source pins
 
 All refs are recorded in `versions.env`. The current build uses:
 
-- Talos `9abd05af449ebf9cb1827648298291afce18d714`
-- Talos pkgs `2f03590c50e45a9439a4b3abcdbe247693c179e0`
-- AsahiLinux/linux `asahi-7.1.12-1`
-  (`ca9a850f237f98949996eefb8980371a5d58c886`)
+- Talos `00ca4c9870786e57690dda23b877025d22256953`
+- Talos pkgs `9b044c593c71b0ea6deb9985b7907e008b91220c`
+- AsahiLinux/linux `77cb8f24c2381a8abb7272d7bbdec548d6426a8a`
 - Mainline Linux `6.18.48` (the kernel source pinned by Talos pkgs)
 
 Do not write a generated raw disk image over the whole internal Apple NVMe.

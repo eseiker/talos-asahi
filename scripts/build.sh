@@ -29,7 +29,7 @@ kernel_image_cache_file="${KERNEL_IMAGE_CACHE_FILE:-}"
 kernel_cache_input_hash=""
 if [[ -z "${kernel_image_cache_file}" && -n "${KERNEL_CACHE_DIR:-}" ]]; then
   kernel_image_cache_file="${KERNEL_CACHE_DIR}/kernel-image.tar"
-kernel_cache_input_hash="$(
+  kernel_cache_input_hash="$(
     {
       printf '%s\0' "${kernel_image}"
       cat \
