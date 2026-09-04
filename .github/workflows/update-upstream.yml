@@ -96,6 +96,7 @@ jobs:
 
       - name: Dispatch all kernel flavor test builds
         if: steps.branch.outputs.created == 'true'
+        working-directory: release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           UPDATE_BRANCH: ${{ steps.branch.outputs.name }}
@@ -110,6 +111,7 @@ jobs:
         if: steps.branch.outputs.needs_pull_request == 'true'
         id: pull_request
         continue-on-error: true
+        working-directory: release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           UPDATE_BRANCH: ${{ steps.branch.outputs.name }}
