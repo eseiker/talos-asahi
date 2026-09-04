@@ -132,7 +132,7 @@ diff --git a/kernel/build/pkg.yaml b/kernel/build/pkg.yaml
 index 40f25d5..8e6dacf 100644
 --- a/kernel/build/pkg.yaml
 +++ b/kernel/build/pkg.yaml
-@@ -13,12 +13,13 @@ steps:
+@@ -13,12 +13,20 @@ steps:
          cd /src
          cp -v /pkg/config-${CARCH} .config
          cp -v /pkg/certs/* certs/
@@ -146,7 +146,14 @@ index 40f25d5..8e6dacf 100644
 -          patch -p1 < $patch || (echo "Failed to apply patch $patch" && exit 1)
 -          echo "Applied patch $patch"
 -        done
-+        echo "Skipping Talos stable-kernel patches for the Asahi downstream tree"
++        if [[ "${ARCH}" == "arm64" ]]; then
++          echo "Skipping Talos stable-kernel patches for the Asahi downstream tree"
++        else
++          for patch in $(find /pkg/patches -type f -name "*.patch" | sort); do
++            patch -p1 < $patch || (echo "Failed to apply patch $patch" && exit 1)
++            echo "Applied patch $patch"
++          done
++        fi
      build:
        {{ if .BUILD_ARG_KERNEL_TARGET }}
        - |
