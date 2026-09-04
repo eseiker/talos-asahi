@@ -25,33 +25,37 @@ kernel_image="${LOCAL_REGISTRY}/talos-asahi/kernel:${KERNEL_IMAGE_TAG}"
 installer_base_image="${LOCAL_REGISTRY}/talos-asahi/installer-base:${ARTIFACT_TAG}"
 imager_image="local/talos-asahi/imager:${ARTIFACT_TAG}"
 prepare_tools_image="local/talos-asahi/prepare-tools:${ARTIFACT_TAG}"
-kernel_target_args=(
-  "--tag=${kernel_image}"
-  "--output=type=docker"
-)
-
-if [[ -n "${KERNEL_CACHE_IMAGE:-}" ]]; then
-  kernel_target_args+=(
-    "--cache-from=type=registry,ref=${KERNEL_CACHE_IMAGE}"
-    "--cache-to=type=registry,ref=${KERNEL_CACHE_IMAGE},mode=max,oci-mediatypes=true,image-manifest=true,ignore-error=true"
+if [[ -n "${KERNEL_IMAGE_CACHE_FILE:-}" && -f "${KERNEL_IMAGE_CACHE_FILE}" ]]; then
+  printf 'loading cached %s kernel image %s\n' "${KERNEL_FLAVOR}" "${kernel_image}"
+  docker image rm --force "${kernel_image}" >/dev/null 2>&1 || true
+  docker load --input "${KERNEL_IMAGE_CACHE_FILE}"
+  docker image inspect "${kernel_image}" >/dev/null
+else
+  kernel_target_args=(
+    "--tag=${kernel_image}"
+    "--output=type=docker"
   )
-elif [[ -n "${KERNEL_CACHE_DIR:-}" ]]; then
-  kernel_cache_new="${KERNEL_CACHE_DIR}.new"
-  rm -rf "${kernel_cache_new}"
-  if [[ -f "${KERNEL_CACHE_DIR}/index.json" ]]; then
-    kernel_target_args+=("--cache-from=type=local,src=${KERNEL_CACHE_DIR}")
-  fi
-  kernel_target_args+=("--cache-to=type=local,dest=${kernel_cache_new},mode=max")
-fi
 
-printf 'building %s kernel image %s\n' "${KERNEL_FLAVOR}" "${kernel_image}"
-"${make_cmd}" -C "${build_root}/pkgs" target-kernel \
-  PLATFORM=linux/arm64 \
-  PROGRESS="${PROGRESS}" \
-  TARGET_ARGS="${kernel_target_args[*]}"
-if [[ -n "${kernel_cache_new:-}" ]]; then
-  rm -rf "${KERNEL_CACHE_DIR}"
-  mv "${kernel_cache_new}" "${KERNEL_CACHE_DIR}"
+  if [[ -n "${KERNEL_CACHE_IMAGE:-}" ]]; then
+    kernel_target_args+=(
+      "--cache-from=type=registry,ref=${KERNEL_CACHE_IMAGE}"
+      "--cache-to=type=registry,ref=${KERNEL_CACHE_IMAGE},mode=max,oci-mediatypes=true,image-manifest=true,ignore-error=true"
+    )
+  fi
+
+  printf 'building %s kernel image %s\n' "${KERNEL_FLAVOR}" "${kernel_image}"
+  "${make_cmd}" -C "${build_root}/pkgs" target-kernel \
+    PLATFORM=linux/arm64 \
+    PROGRESS="${PROGRESS}" \
+    TARGET_ARGS="${kernel_target_args[*]}"
+
+  if [[ -n "${KERNEL_IMAGE_CACHE_FILE:-}" ]]; then
+    mkdir -p "$(dirname "${KERNEL_IMAGE_CACHE_FILE}")"
+    kernel_image_cache_tmp="${KERNEL_IMAGE_CACHE_FILE}.tmp"
+    rm -f "${kernel_image_cache_tmp}"
+    docker save --output "${kernel_image_cache_tmp}" "${kernel_image}"
+    mv "${kernel_image_cache_tmp}" "${KERNEL_IMAGE_CACHE_FILE}"
+  fi
 fi
 docker push "${kernel_image}"
 
