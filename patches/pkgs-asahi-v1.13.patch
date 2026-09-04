@@ -1,0 +1,164 @@
+diff --git a/Pkgfile b/Pkgfile
+index 822e31a..cc14178 100644
+--- a/Pkgfile
++++ b/Pkgfile
+@@ -97,10 +97,11 @@ vars:
+   kspp_sha256: 640b25473f86557d082f680b0f57653a69f4146e97825673bf582f9a4c8b7739
+   kspp_sha512: 82dae1debbe94a3f82766a8cdbfe59ff8698d433175803458499b76c50b47b89e9280b677a9f16b2a44711badd6f4001aba951a41722a74dd51c03a18b8b9219
+ 
+-  # renovate: datasource=git-tags extractVersion=^v(?<version>.*)$ depName=git://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git
+-  linux_version: 6.18.48
+-  linux_sha256: 5ebdadb10a4b5708fc6b1c457764a110bc49f8150cc3502c59b921ead8c6fc8c
+-  linux_sha512: 711e08958a8a4c39206018d0222687dc5a01845a9226ae44f7d3f0cfcea76caae041cee958dfe8c0cfc8c728a5a2241b29018ccf1b7593b9615c27057d2628c4
++  # Asahi Linux downstream kernel, pinned for reproducible Talos builds.
++  linux_version: ASAHI_KERNEL_VERSION
++  linux_ref: ASAHI_KERNEL_SHA
++  linux_sha256: ASAHI_KERNEL_SHA256
++  linux_sha512: ASAHI_KERNEL_SHA512
+ 
+   # renovate: datasource=git-tags extractVersion=^libaio-(?<version>.*)$ depName=https://pagure.io/libaio.git
+   libaio_version: 0.3.113
+diff --git a/kernel/build/pkg.yaml b/kernel/build/pkg.yaml
+index 40f25d5..8e6dacf 100644
+--- a/kernel/build/pkg.yaml
++++ b/kernel/build/pkg.yaml
+@@ -13,12 +13,13 @@ steps:
+         cd /src
+         cp -v /pkg/config-${CARCH} .config
+         cp -v /pkg/certs/* certs/
++      - |
++        if [[ "${ARCH}" == "arm64" ]]; then
++          /pkg/configure-asahi-arm64.sh /src
++        fi
+       - |
+         cd /src
+-        for patch in $(find /pkg/patches -type f -name "*.patch" | sort); do
+-          patch -p1 < $patch || (echo "Failed to apply patch $patch" && exit 1)
+-          echo "Applied patch $patch"
+-        done
++        echo "Skipping Talos stable-kernel patches for the Asahi downstream tree"
+     build:
+       {{ if .BUILD_ARG_KERNEL_TARGET }}
+       - |
+@@ -28,7 +29,12 @@ steps:
+       {{ else }}
+       - |
+         cd /src
+-        python3 /toolchain/kernel-hardening-checker/bin/kernel-hardening-checker -c .config -m json | python3 /pkg/scripts/filter-hardened-check.py ${CARCH}
++        # The checker bundled with Talos 1.13 still requires the removed
++        # ARM64_PAN symbol. Linux 7.1 exposes SW_TTBR0_PAN and EPAN instead.
++        # Keep the report visible, but do not fail this experimental kernel.
++        python3 /toolchain/kernel-hardening-checker/bin/kernel-hardening-checker -c .config -m json | \
++          python3 /pkg/scripts/filter-hardened-check.py ${CARCH} || \
++          echo "warning: hardening checker is not yet Linux 7.1 aware"
+       - |
+         cd /src
+ 
+@@ -39,14 +45,35 @@ steps:
+           echo "Compiling device-tree blobs"
+           make -j $(nproc) DTC_FLAGS=-@ dtbs
+         fi
++      - |
++        cd /src
++
++        mkdir -p /kernel-out/boot /kernel-out/dtb /kernel-out/certs
++
++        case "${ARCH}" in
++          x86)
++            cp arch/x86/boot/bzImage /kernel-out/boot/vmlinuz
++            ;;
++          arm64)
++            cp arch/arm64/boot/vmlinuz.efi /kernel-out/boot/vmlinuz
++            cd arch/arm64/boot/dts
++            find . -type f -name "*.dtb" -exec cp --parents {} /kernel-out/dtb/ \;
++            cd /src
++            ;;
++        esac
++
++        cp System.map /kernel-out/boot/System.map
++
++        KERNELRELEASE=$(cat include/config/kernel.release)
++        make -j $(nproc) modules_install INSTALL_MOD_PATH=/kernel-out/usr INSTALL_MOD_STRIP=1
++        depmod -b /kernel-out/usr -F /kernel-out/boot/System.map --errsyms -w "${KERNELRELEASE}"
++        unlink "/kernel-out/usr/lib/modules/${KERNELRELEASE}/build"
+       {{ end }}
+ finalize:
+   {{ if .BUILD_ARG_KERNEL_TARGET }}
+   - from: /src/.config
+     to: config-{{ if eq .ARCH "aarch64"}}arm64{{ else if eq .ARCH "x86_64" }}amd64{{ else }}unsupported{{ end }}
+   {{ else }}
+-  - from: /src
+-    to: /src
+-  - from: /toolchain
+-    to: /toolchain
++  - from: /kernel-out
++    to: /kernel-out
+   {{ end }}
+diff --git a/kernel/kernel/pkg.yaml b/kernel/kernel/pkg.yaml
+index f2a8e5e..d0b13f3 100644
+--- a/kernel/kernel/pkg.yaml
++++ b/kernel/kernel/pkg.yaml
+@@ -9,38 +9,7 @@ steps:
+       ARCH: {{ if eq .ARCH "aarch64"}}arm64{{ else if eq .ARCH "x86_64" }}x86_64{{ else }}unsupported{{ end }}
+     install:
+       - |
+-        cd /src
+-
+-        mkdir -p /rootfs/boot
+-        mkdir -p /rootfs/dtb
+-        mkdir -p /rootfs/certs
+-
+-        case $ARCH in
+-            x86_64)
+-                mv arch/x86/boot/bzImage /rootfs/boot/vmlinuz
+-            ;;
+-            arm64)
+-                mv arch/arm64/boot/vmlinuz.efi /rootfs/boot/vmlinuz
+-                cd ./arch/arm64/boot/dts
+-                for vendor in $(find . -not -path . -type d); do
+-                  dest="/rootfs/dtb/$vendor"
+-                  mkdir -v $dest
+-                  find ./$vendor/* -type f -name "*.dtb" -exec cp {} $dest \;
+-                done
+-                cd -
+-            ;;
+-            *)
+-                echo "unsupported arch ${ARCH}"
+-                exit 1
+-            ;;
+-        esac
+-
+-        cp System.map /rootfs/boot/System.map
+-
+-        export KERNELRELEASE=$(cat include/config/kernel.release)
+-        make -j $(nproc) modules_install INSTALL_MOD_PATH=/rootfs/usr INSTALL_MOD_STRIP=1
+-        depmod -b /rootfs/usr -F /rootfs/boot/System.map --errsyms -w $KERNELRELEASE
+-        unlink /rootfs/usr/lib/modules/$KERNELRELEASE/build
++        cp -a /kernel-out/. /rootfs/
+     sbom:
+       outputPath: /rootfs/usr/share/spdx/kernel.spdx.json
+       version: {{ .linux_version }}
+diff --git a/kernel/prepare/pkg.yaml b/kernel/prepare/pkg.yaml
+index 6c6e61d..3f40fd7 100644
+--- a/kernel/prepare/pkg.yaml
++++ b/kernel/prepare/pkg.yaml
+@@ -6,8 +6,8 @@ dependencies:
+   - image: "{{ .LLVM_IMAGE }}:{{ .TOOLS_REV }}"
+ steps:
+   - sources:
+-      - url: https://cdn.kernel.org/pub/linux/kernel/v{{ regexReplaceAll "(\\d+)(.\\d+)(\\.\\d+)?$" .linux_version "${1}" }}.x/linux-{{ .linux_version }}.tar.xz
+-        destination: linux.tar.xz
++      - url: https://github.com/AsahiLinux/linux/archive/{{ .linux_ref }}.tar.gz
++        destination: linux.tar.gz
+         sha256: "{{ .linux_sha256 }}"
+         sha512: "{{ .linux_sha512 }}"
+       - url: https://github.com/a13xp0p0v/kernel-hardening-checker/archive/{{ .kspp_ref }}.tar.gz
+@@ -19,7 +19,7 @@ steps:
+     prepare:
+       - |
+         mkdir -p /src
+-        tar -xJf linux.tar.xz --strip-components=1 -C /src
++        tar -xzf linux.tar.gz --strip-components=1 -C /src
+ 
+         cd /src
+         make mrproper
