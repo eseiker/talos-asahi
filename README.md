@@ -47,14 +47,14 @@ Download the ZIP for the desired kernel flavor from the matching GitHub
 Release:
 
 ```text
-talos-asahi-v1.15.0-alpha.0-asahi.1-esp.zip
-talos-asahi-v1.15.0-alpha.0-asahi.1-mainline-esp.zip
-talos-asahi-v1.15.0-alpha.0-asahi.1-mainline-4k-esp.zip
-talos-asahi-v1.15.0-alpha.0-asahi.1-v1.15-esp.zip
-talos-asahi-v1.15.0-alpha.0-asahi.1-longhorn-esp.zip
-talos-asahi-v1.15.0-alpha.0-asahi.1-mainline-longhorn-esp.zip
-talos-asahi-v1.15.0-alpha.0-asahi.1-mainline-4k-longhorn-esp.zip
-talos-asahi-v1.15.0-alpha.0-asahi.1-v1.15-longhorn-esp.zip
+talos-asahi-v1.14.0-asahi.2-esp.zip
+talos-asahi-v1.14.0-asahi.2-mainline-esp.zip
+talos-asahi-v1.14.0-asahi.2-mainline-4k-esp.zip
+talos-asahi-v1.14.0-asahi.2-v1.15-esp.zip
+talos-asahi-v1.14.0-asahi.2-longhorn-esp.zip
+talos-asahi-v1.14.0-asahi.2-mainline-longhorn-esp.zip
+talos-asahi-v1.14.0-asahi.2-mainline-4k-longhorn-esp.zip
+talos-asahi-v1.14.0-asahi.2-v1.15-longhorn-esp.zip
 ```
 
 The Asahi flavor is the default. The other flavors are experimental and have a
@@ -71,12 +71,12 @@ an ESP produces exactly this overlay:
 ```text
 EFI/BOOT/BOOTAA64.efi
 EFI/Linux/Talos-prepare.efi
-EFI/Linux/Talos-v1.15.0-alpha.0.efi
+EFI/Linux/Talos-v1.14.0.efi
 loader/loader.conf
 ```
 
 The mainline bundle names its final UKI
-`EFI/Linux/Talos-v1.15.0-alpha.0-mainline.efi`; the custom 4 KiB and compatibility
+`EFI/Linux/Talos-v1.14.0-mainline.efi`; the custom 4 KiB and compatibility
 bundles use `-mainline-4k.efi` and `-v1.15.efi`. The four Longhorn bundles
 append `-longhorn` to those UKI names and include `iscsi-tools` and
 `util-linux-tools` in the UKI initramfs. None of the bundles contains or
@@ -95,7 +95,7 @@ release overlay. The installer prints the new EFI PARTUUID; use that value
 below:
 
 ```sh
-BUNDLE="$HOME/Downloads/talos-asahi-v1.15.0-alpha.0-asahi.1-esp.zip"
+BUNDLE="$HOME/Downloads/talos-asahi-v1.14.0-asahi.2-esp.zip"
 ESP_PARTUUID="replace-with-the-EFI-PARTUUID-shown-by-the-installer"
 
 diskutil mount "${ESP_PARTUUID}"
@@ -191,7 +191,7 @@ internal NVMe and matching downstream image, with whole-disk wiping disabled:
 machine:
   install:
     disk: /dev/nvme0n1
-    image: ghcr.io/OWNER/talos-asahi/installer:v1.15.0-alpha.0-asahi.1
+    image: ghcr.io/OWNER/talos-asahi/installer:v1.14.0-asahi.2
     wipe: false
 ```
 
@@ -201,9 +201,9 @@ section above is therefore a safety contract for any later explicitly staged
 installation; it does not create STATE on the first configured boot.
 
 Keep the installer image flavor matched to the ESP bundle. Use
-`:v1.15.0-alpha.0-asahi.1-mainline` with the mainline 16K ZIP,
-`:v1.15.0-alpha.0-asahi.1-mainline-4k` with the custom mainline 4K ZIP, and
-`:v1.15.0-alpha.0-asahi.1-v1.15` with the compatibility ZIP. Mixing them causes
+`:v1.14.0-asahi.2-mainline` with the mainline 16K ZIP,
+`:v1.14.0-asahi.2-mainline-4k` with the custom mainline 4K ZIP, and
+`:v1.14.0-asahi.2-v1.15` with the compatibility ZIP. Mixing them causes
 the installer to replace the selected test UKI with a different kernel flavor.
 Likewise, use a `*-longhorn-esp.zip` only with the matching installer tag that
 ends in `-longhorn`.
@@ -232,7 +232,7 @@ Never write a generic Talos raw disk image to the whole internal NVMe.
 For a repository named `OWNER/talos-asahi`, the immutable release tag is:
 
 ```text
-ghcr.io/OWNER/talos-asahi/installer:v1.15.0-alpha.0-asahi.1
+ghcr.io/OWNER/talos-asahi/installer:v1.14.0-asahi.2
 ```
 
 Every kernel flavor also has a `-longhorn` installer variant. It contains the
@@ -240,10 +240,10 @@ same patched kernel and installer, plus the Talos `iscsi-tools` and
 `util-linux-tools` system extensions required by Longhorn:
 
 ```text
-ghcr.io/OWNER/talos-asahi/installer:v1.15.0-alpha.0-asahi.1-longhorn
-ghcr.io/OWNER/talos-asahi/installer:v1.15.0-alpha.0-asahi.1-mainline-longhorn
-ghcr.io/OWNER/talos-asahi/installer:v1.15.0-alpha.0-asahi.1-mainline-4k-longhorn
-ghcr.io/OWNER/talos-asahi/installer:v1.15.0-alpha.0-asahi.1-v1.15-longhorn
+ghcr.io/OWNER/talos-asahi/installer:v1.14.0-asahi.2-longhorn
+ghcr.io/OWNER/talos-asahi/installer:v1.14.0-asahi.2-mainline-longhorn
+ghcr.io/OWNER/talos-asahi/installer:v1.14.0-asahi.2-mainline-4k-longhorn
+ghcr.io/OWNER/talos-asahi/installer:v1.14.0-asahi.2-v1.15-longhorn
 ```
 
 Choose the Longhorn variant only when those extensions are required. Its ESP
@@ -258,7 +258,7 @@ After the first ESP-based installation is working, upgrade a node with:
 NODE_IP=192.0.2.10
 talosctl upgrade \
   --nodes "${NODE_IP}" \
-  --image ghcr.io/OWNER/talos-asahi/installer:v1.15.0-alpha.0-asahi.1 \
+  --image ghcr.io/OWNER/talos-asahi/installer:v1.14.0-asahi.2 \
   --reboot-mode=powercycle
 ```
 
@@ -330,9 +330,9 @@ unrelated to the GPT disk GUID, META PARTUUID, or a filesystem UUID.
 The ZIP uses a stable final UKI name rather than encoding the downstream build
 revision in the ESP filename. Its initial `loader.conf` selects
 `Talos-prepare.efi`; preparation rewrites it to the exact final filename. The
-non-default bundles use `Talos-v1.15.0-alpha.0-mainline.efi`,
-`Talos-v1.15.0-alpha.0-mainline-4k.efi`, and
-`Talos-v1.15.0-alpha.0-v1.15.efi` so all kernel flavors remain
+non-default bundles use `Talos-v1.14.0-mainline.efi`,
+`Talos-v1.14.0-mainline-4k.efi`, and
+`Talos-v1.14.0-v1.15.efi` so all kernel flavors remain
 distinguishable.
 
 On upgrade, Talos keeps the currently booted UKI as fallback, writes the next
@@ -484,7 +484,7 @@ workflow and select `main`, `release-1.14`, or `release-1.13`. The workflow
 computes the exact tag from that branch, rejects a channel or release-series
 mismatch, creates an immutable annotated tag at the verified branch HEAD, and
 dispatches all four builds. For the current pins that tag is
-`v1.15.0-alpha.0-asahi.1`.
+`v1.14.0-asahi.2`.
 
 ## Local validation and build
 

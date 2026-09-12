@@ -90,6 +90,9 @@ for flavor in mainline mainline-4k; do
   done
 done
 
+v1_15_modules="${validation_root}/v1.15/talos/hack/modules-arm64.txt"
+reject_module "${v1_15_modules}" kernel/drivers/virtio/virtio_input.ko
+
 if ! git -C "${validation_root}/v1.15/pkgs" diff --quiet; then
   printf 'v1.15 kernel flavor must use the unmodified pinned pkgs source\n' >&2
   exit 1
