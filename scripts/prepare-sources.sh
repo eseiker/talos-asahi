@@ -95,6 +95,9 @@ case "${KERNEL_FLAVOR}" in
       "${destination}/talos/hack/modules-arm64.txt"
     ;;
   v1.15)
+    sed -i \
+      -e '\|kernel/drivers/virtio/virtio_input.ko|d' \
+      "${destination}/talos/hack/modules-arm64.txt"
     ;;
 esac
 
