@@ -27,9 +27,12 @@ assert_image_tag test-tag \
 
 sed_test_file="$(mktemp "${TMPDIR:-/tmp}/talos-asahi-sed.XXXXXX")"
 trap 'rm -f "${sed_test_file}"' EXIT
-printf 'alpha\n' >"${sed_test_file}"
-sed_in_place -e 's/alpha/beta/' "${sed_test_file}"
-if [[ "$(cat "${sed_test_file}")" != beta ]]; then
+printf 'alpha\ngamma\n' >"${sed_test_file}"
+sed_in_place \
+  -e 's/gamma/delta/' \
+  -e $'/alpha/a\\\nbeta' \
+  "${sed_test_file}"
+if [[ "$(cat "${sed_test_file}")" != $'alpha\nbeta\ndelta' ]]; then
   printf 'portable in-place sed failed\n' >&2
   exit 1
 fi

@@ -48,7 +48,7 @@ case "${KERNEL_FLAVOR}" in
       -e '\|kernel/drivers/spi/spi-apple.ko|d' \
       -e '\|kernel/drivers/spmi/spmi-apple-controller.ko|d' \
       -e '\|kernel/drivers/watchdog/apple_wdt.ko|d' \
-      -e '/kernel\/drivers\/net\/ethernet\/stmicro\/stmmac\/stmmac-pci\.ko/a kernel/drivers/net/ethernet/stmicro/stmmac/stmmac_libpci.ko' \
+      -e $'/kernel\\/drivers\\/net\\/ethernet\\/stmicro\\/stmmac\\/stmmac-pci\\.ko/a\\\nkernel/drivers/net/ethernet/stmicro/stmmac/stmmac_libpci.ko' \
       "${destination}/talos/hack/modules-arm64.txt"
     ;;
   mainline)
