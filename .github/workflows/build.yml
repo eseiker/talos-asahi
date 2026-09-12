@@ -25,6 +25,11 @@ on:
         required: true
         type: boolean
         default: false
+      publish_release:
+        description: Publish a GitHub release when dispatched on a tag
+        required: true
+        type: boolean
+        default: false
   push:
     tags:
       - 'v*-asahi.*'
@@ -138,7 +143,7 @@ jobs:
 
   release:
     name: publish GitHub release
-    if: github.event_name == 'push'
+    if: startsWith(github.ref, 'refs/tags/') && (github.event_name == 'push' || inputs.publish_release)
     needs: build
     runs-on: ubuntu-24.04
 
@@ -220,7 +225,7 @@ jobs:
 
   promote-latest:
     name: promote stable Latest aliases
-    if: github.event_name == 'push'
+    if: startsWith(github.ref, 'refs/tags/') && (github.event_name == 'push' || inputs.publish_release)
     needs: release
     runs-on: ubuntu-24.04
     concurrency:

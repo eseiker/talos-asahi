@@ -13,6 +13,27 @@ release_channel() {
   fi
 }
 
+release_branch_accepts_tag() {
+  local branch="$1"
+  local tag="$2"
+  local channel series
+
+  channel="$(release_channel "${tag}")" || return 1
+
+  if [[ "${branch}" == main ]]; then
+    [[ "${channel}" == prerelease ]]
+    return
+  fi
+
+  if [[ "${branch}" =~ ^release-([0-9]+\.[0-9]+)$ ]]; then
+    series="${BASH_REMATCH[1]}"
+    [[ "${channel}" == stable && "${tag}" == v"${series}".*-asahi.* ]]
+    return
+  fi
+
+  return 1
+}
+
 stable_release_key() {
   local tag="$1"
 

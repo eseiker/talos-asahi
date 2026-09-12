@@ -41,10 +41,33 @@ assert_older() {
   fi
 }
 
+assert_branch_accepts() {
+  if ! release_branch_accepts_tag "$1" "$2"; then
+    printf 'expected branch %s to accept %s\n' "$1" "$2" >&2
+    return 1
+  fi
+}
+
+assert_branch_rejects() {
+  if release_branch_accepts_tag "$1" "$2" >/dev/null 2>&1; then
+    printf 'expected branch %s to reject %s\n' "$1" "$2" >&2
+    return 1
+  fi
+}
+
 assert_channel stable v1.14.1-asahi.1
 assert_channel prerelease v1.15.0-alpha.0-asahi.1
 assert_channel prerelease v1.15.0-beta.2-asahi.3
 assert_channel prerelease v1.15.0-rc.1-asahi.1
+
+assert_branch_accepts main v1.15.0-alpha.0-asahi.1
+assert_branch_accepts release-1.14 v1.14.0-asahi.2
+assert_branch_accepts release-1.13 v1.13.10-asahi.2
+assert_branch_rejects main v1.15.0-asahi.1
+assert_branch_rejects release-1.14 v1.15.0-alpha.0-asahi.1
+assert_branch_rejects release-1.14 v1.13.10-asahi.2
+assert_branch_rejects release-1x.14 v1.14.0-asahi.2
+assert_branch_rejects rebase-release-1.14 v1.14.0-asahi.2
 
 if release_channel v1.15.0-dev.1-asahi.1 >/dev/null 2>&1; then
   printf 'unsupported prerelease tag was accepted\n' >&2

@@ -478,9 +478,13 @@ get the update branch and test builds, and can open the pull request manually.
 The tracker never publishes images, moves `latest`, or creates a release tag
 automatically.
 
-For a release, update `versions.env`, make sure the patches still apply, bump
-`BUILD_REVISION` when appropriate, and push the exact computed tag. For the
-current pins that tag is `v1.15.0-alpha.0-asahi.1`.
+For a release, update `versions.env`, make sure the patches still apply, and
+bump `BUILD_REVISION` when appropriate. Then run the `Tag and publish release`
+workflow and select `main`, `release-1.14`, or `release-1.13`. The workflow
+computes the exact tag from that branch, rejects a channel or release-series
+mismatch, creates an immutable annotated tag at the verified branch HEAD, and
+dispatches all four builds. For the current pins that tag is
+`v1.15.0-alpha.0-asahi.1`.
 
 ## Local validation and build
 

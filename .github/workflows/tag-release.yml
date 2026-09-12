@@ -1,0 +1,89 @@
+name: Tag and publish release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_branch:
+        description: Branch whose pinned release should be tagged
+        required: true
+        type: choice
+        options:
+          - main
+          - release-1.14
+          - release-1.13
+        default: main
+
+permissions:
+  actions: write
+  contents: write
+
+concurrency:
+  group: talos-asahi-tag-${{ inputs.release_branch }}
+  cancel-in-progress: false
+
+jobs:
+  tag:
+    name: tag ${{ inputs.release_branch }}
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Check out release branch
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.release_branch }}
+
+      - name: Resolve and verify release tag
+        id: release
+        env:
+          RELEASE_BRANCH: ${{ inputs.release_branch }}
+        shell: bash
+        run: |
+          source ./scripts/lib.sh
+          source ./scripts/release-policy.sh
+          load_versions
+
+          if ! release_branch_accepts_tag "${RELEASE_BRANCH}" "${RELEASE_TAG}"; then
+            echo "${RELEASE_TAG} is not valid for ${RELEASE_BRANCH}" >&2
+            exit 1
+          fi
+
+          target_sha="$(git rev-parse HEAD)"
+          remote_sha="$(git ls-remote origin "refs/heads/${RELEASE_BRANCH}" | awk '{print $1}')"
+          if [[ -z "${remote_sha}" || "${target_sha}" != "${remote_sha}" ]]; then
+            echo "checked out ${target_sha}, but origin/${RELEASE_BRANCH} is ${remote_sha:-missing}" >&2
+            exit 1
+          fi
+
+          remote_tag="$(git ls-remote --tags origin "refs/tags/${RELEASE_TAG}")"
+          if [[ -n "${remote_tag}" ]]; then
+            echo "tag ${RELEASE_TAG} already exists; refusing to move it" >&2
+            exit 1
+          fi
+
+          echo "release_tag=${RELEASE_TAG}" >>"${GITHUB_OUTPUT}"
+          echo "target_sha=${target_sha}" >>"${GITHUB_OUTPUT}"
+
+      - name: Create immutable annotated tag
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.release_tag }}
+          TARGET_SHA: ${{ steps.release.outputs.target_sha }}
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git tag --annotate "${RELEASE_TAG}" "${TARGET_SHA}" \
+            --message "Talos Asahi ${RELEASE_TAG}"
+          git push origin "refs/tags/${RELEASE_TAG}"
+
+      - name: Dispatch release build
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ steps.release.outputs.release_tag }}
+        run: |
+          gh workflow run build.yml \
+            --ref "${RELEASE_TAG}" \
+            --field kernel_flavor=all \
+            --field publish=true \
+            --field publish_latest=false \
+            --field publish_release=true
