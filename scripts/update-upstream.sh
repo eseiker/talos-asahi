@@ -75,13 +75,47 @@ latest_stable_talos_tag() {
   fi
 }
 
-talos_series="${TALOS_VERSION%.*}"
+latest_prerelease_talos_tag() {
+  local talos_release="$1"
+
+  if ! gh api --paginate "repos/siderolabs/talos/releases?per_page=100" \
+    --jq '.[] | select(.draft == false and .prerelease == true) | .tag_name' |
+    while IFS= read -r tag; do
+      if [[ "${tag}" =~ ^(v[0-9]+\.[0-9]+\.[0-9]+)-(alpha|beta|rc)\.[0-9]+$ &&
+            "${BASH_REMATCH[1]}" == "${talos_release}" ]]; then
+        printf '%s\n' "${tag}"
+      fi
+    done |
+    sort --version-sort |
+    tail -n 1; then
+    printf 'failed to list Talos prereleases\n' >&2
+    return 1
+  fi
+}
+
+talos_channel="${TALOS_CHANNEL:-stable}"
 track_asahi_updates="${TRACK_ASAHI_UPDATES:-true}"
 
-if [[ ! "${talos_series}" =~ ^v[0-9]+\.[0-9]+$ ]]; then
-  printf 'invalid current Talos release tag: %s\n' "${TALOS_VERSION}" >&2
-  exit 1
-fi
+case "${talos_channel}" in
+  stable)
+    if [[ ! "${TALOS_VERSION}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+      printf 'invalid stable Talos release tag: %s\n' "${TALOS_VERSION}" >&2
+      exit 1
+    fi
+    talos_series="${TALOS_VERSION%.*}"
+    ;;
+  prerelease)
+    if [[ ! "${TALOS_VERSION}" =~ ^(v[0-9]+\.[0-9]+\.[0-9]+)-(alpha|beta|rc)\.[0-9]+$ ]]; then
+      printf 'invalid prerelease Talos tag: %s\n' "${TALOS_VERSION}" >&2
+      exit 1
+    fi
+    talos_series="${BASH_REMATCH[1]}"
+    ;;
+  *)
+    printf 'TALOS_CHANNEL must be stable or prerelease\n' >&2
+    exit 1
+    ;;
+esac
 
 if [[ "${track_asahi_updates}" != "true" && "${track_asahi_updates}" != "false" ]]; then
   printf 'TRACK_ASAHI_UPDATES must be true or false\n' >&2
@@ -104,13 +138,18 @@ fi
 
 target_version="${TARGET_TALOS_VERSION:-}"
 if [[ -z "${target_version}" ]]; then
-  if ! target_version="$(latest_stable_talos_tag "${talos_series}")"; then
-    exit 1
-  fi
+  case "${talos_channel}" in
+    stable)
+      target_version="$(latest_stable_talos_tag "${talos_series}")" || exit 1
+      ;;
+    prerelease)
+      target_version="$(latest_prerelease_talos_tag "${talos_series}")" || exit 1
+      ;;
+  esac
 fi
 
 if [[ -z "${target_version}" ]]; then
-  printf 'failed to resolve a stable Talos release for %s\n' "${talos_series}" >&2
+  printf 'failed to resolve a %s Talos release for %s\n' "${talos_channel}" "${talos_series}" >&2
   exit 1
 fi
 
@@ -121,23 +160,35 @@ if [[ "${track_asahi_updates}" == "true" && -z "${TARGET_ASAHI_TAG:-}" ]]; then
   target_asahi_tag="$(latest_stable_asahi_tag)"
 fi
 
-if [[ ! "${target_version}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-  printf 'refusing non-stable Talos release tag: %s\n' "${target_version}" >&2
-  exit 1
-fi
-
-if [[ "${target_version%.*}" != "${talos_series}" ]]; then
-  printf 'refusing Talos release %s outside tracked series %s\n' \
-    "${target_version}" "${talos_series}" >&2
-  exit 1
-fi
+case "${talos_channel}" in
+  stable)
+    if [[ ! "${target_version}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ||
+          "${target_version%.*}" != "${talos_series}" ]]; then
+      printf 'refusing stable Talos release %s outside tracked series %s\n' \
+        "${target_version}" "${talos_series}" >&2
+      exit 1
+    fi
+    ;;
+  prerelease)
+    if [[ ! "${target_version}" =~ ^(v[0-9]+\.[0-9]+\.[0-9]+)-(alpha|beta|rc)\.[0-9]+$ ||
+          "${BASH_REMATCH[1]}" != "${talos_series}" ]]; then
+      printf 'refusing Talos prerelease %s outside tracked release %s\n' \
+        "${target_version}" "${talos_series}" >&2
+      exit 1
+    fi
+    ;;
+esac
 
 emit_output talos_version "${target_version}"
 
 talos_updated=false
 ignored_talos_version=
 if [[ "${target_version}" != "${TALOS_VERSION}" ]]; then
-  if version_is_newer "${target_version}" "${TALOS_VERSION}" || [[ "${force_update}" == "true" ]]; then
+  if { [[ "${talos_channel}" == "stable" ]] &&
+       version_is_newer "${target_version}" "${TALOS_VERSION}"; } ||
+    { [[ "${talos_channel}" == "prerelease" ]] &&
+      version_tag_is_newer "${target_version}" "${TALOS_VERSION}"; } ||
+    [[ "${force_update}" == "true" ]]; then
     talos_updated=true
   else
     ignored_talos_version="${target_version}"
@@ -152,7 +203,7 @@ if [[ "${target_version}" == "${TALOS_VERSION}" && "${talos_updated}" == "false"
     printf 'ignoring Talos release %s because current pin %s is newer\n' \
       "${ignored_talos_version}" "${TALOS_VERSION}"
   else
-    printf 'already tracking latest stable Talos release %s\n' "${TALOS_VERSION}"
+    printf 'already tracking latest %s Talos release %s\n' "${talos_channel}" "${TALOS_VERSION}"
   fi
 fi
 
@@ -207,7 +258,7 @@ fi
 if [[ "${talos_updated}" == "false" && "${asahi_updated}" == "false" &&
       "${force_update}" != "true" ]]; then
   emit_output updated false
-  printf 'no newer upstream updates found for Talos series %s\n' "${talos_series}"
+  printf 'no newer upstream updates found for Talos %s %s\n' "${talos_channel}" "${talos_series}"
 
   exit 0
 fi
@@ -302,7 +353,7 @@ awk \
     /^ASAHI_KERNEL_SHA256=/ { print "ASAHI_KERNEL_SHA256=" asahi_sha256; next }
     /^ASAHI_KERNEL_SHA512=/ { print "ASAHI_KERNEL_SHA512=" asahi_sha512; next }
     /^MAINLINE_KERNEL_VERSION=/ { print "MAINLINE_KERNEL_VERSION=" mainline_kernel_version; next }
-    /^# Talos v[0-9]+\.[0-9]+\.[0-9]+ system extensions/ {
+    /^# Talos v[0-9]+\.[0-9]+\.[0-9]+(-(alpha|beta|rc)\.[0-9]+)? system extensions/ {
       print "# Talos " talos_version " system extensions used by the Longhorn installer variants."
       next
     }

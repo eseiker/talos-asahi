@@ -452,19 +452,18 @@ Tags containing a Talos `alpha`, `beta`, or `rc` suffix create GitHub
 prereleases and never enter stable Latest promotion.
 
 `Track upstream releases` runs daily from the default branch and can also be
-dispatched manually. It checks `release-1.13` and `release-1.14` independently.
-For each branch, it selects only stable Talos `vX.Y.Z` tags from that branch's
-existing `vX.Y` release line, so a newer minor release cannot advance an older
-maintenance branch.
+dispatched manually. It checks `main`, `release-1.13`, and `release-1.14`
+independently. `main` follows prerelease Talos tags for its existing
+`vX.Y.Z` release, while each release branch selects only stable Talos
+`vX.Y.Z` tags from its existing `vX.Y` line. A newer minor release therefore
+cannot advance an older maintenance branch.
 
 For Talos updates, the workflow also extracts the matching pkgs commit and
 kernel image tag, mainline kernel version, and Longhorn extension references.
-`release-1.14`
-additionally tracks the latest stable downstream AsahiLinux
-`asahi-X.Y.Z-N` tag and pins its commit and archive checksums.
-`release-1.13`, which retains the older pin format from
-`v1.13.9-asahi.10`, tracks Talos patch releases without changing its Asahi
-kernel.
+All three branches additionally track the latest stable downstream AsahiLinux
+`asahi-X.Y.Z-N` tag and pin its commit and archive checksums. A single new
+Asahi kernel tag can therefore produce separate update pull requests and
+compatibility builds for `main`, `release-1.14`, and `release-1.13`.
 
 The tracker resets `BUILD_REVISION=1` for a Talos patch release and increments
 it for Asahi-only rebuilds. It pushes a unique update branch below the matching

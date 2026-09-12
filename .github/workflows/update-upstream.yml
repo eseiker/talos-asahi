@@ -23,9 +23,14 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - release_branch: main
+            talos_channel: prerelease
+            track_asahi_updates: true
           - release_branch: release-1.13
-            track_asahi_updates: false
+            talos_channel: stable
+            track_asahi_updates: true
           - release_branch: release-1.14
+            talos_channel: stable
             track_asahi_updates: true
 
     steps:
@@ -46,6 +51,7 @@ jobs:
         id: update
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TALOS_CHANNEL: ${{ matrix.talos_channel }}
           TRACK_ASAHI_UPDATES: ${{ matrix.track_asahi_updates }}
           VERSIONS_FILE: ${{ github.workspace }}/release/versions.env
         run: ./tracker/scripts/update-upstream.sh
@@ -148,7 +154,7 @@ jobs:
               "- mainline kernel: \`${MAINLINE_KERNEL_VERSION}\`" \
               '- build revision reset to `1` for Talos updates and incremented for Asahi-only rebuilds' \
               '' \
-              'The tracker separately dispatched artifact-only Asahi, mainline 16K, mainline 4K, and v1.15 compatibility builds. Fix any patch conflicts in this branch, then merge and create the computed release tag manually.')"
+              'The tracker separately dispatched every kernel flavor supported by this branch as artifact-only builds. Fix any patch conflicts in this branch, then merge and create the computed release tag manually.')"
 
       - name: Warn when pull request creation is disabled
         if: steps.pull_request.outcome == 'failure'
@@ -173,7 +179,7 @@ jobs:
             fi
             echo "- Branch: \`${UPDATE_BRANCH}\`"
             if [[ "${{ steps.branch.outputs.created }}" == "true" ]]; then
-              echo "- Asahi, mainline 16K, mainline 4K, and v1.15 compatibility builds dispatched"
+              echo "- All kernel flavors supported by the target branch were dispatched"
             else
               echo "- Existing update branch or pull request retained"
             fi
