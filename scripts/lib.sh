@@ -12,6 +12,14 @@ image_ref_tag() {
   printf '%s\n' "${image_ref##*:}"
 }
 
+sed_in_place() {
+  if [[ "$(uname -s)" == Darwin ]]; then
+    sed -i '' "$@"
+  else
+    sed -i "$@"
+  fi
+}
+
 load_versions() {
   local root
   root="$(repo_root)"

@@ -25,13 +25,13 @@ case "${KERNEL_FLAVOR}" in
       exit 1
     fi
 
-    sed -i \
+    sed_in_place \
       -e "s/ASAHI_KERNEL_VERSION/${ASAHI_KERNEL_VERSION}/" \
       -e "s/ASAHI_KERNEL_SHA256/${ASAHI_KERNEL_SHA256}/" \
       -e "s/ASAHI_KERNEL_SHA512/${ASAHI_KERNEL_SHA512}/" \
       -e "s/ASAHI_KERNEL_SHA/${ASAHI_KERNEL_SHA}/" \
       "${destination}/pkgs/Pkgfile"
-    sed -i \
+    sed_in_place \
       -e '\|kernel/arch/arm64/lib/xor-neon.ko|d' \
       -e '\|kernel/crypto/hkdf.ko|d' \
       -e 's|kernel/crypto/xor.ko|kernel/lib/raid/xor/xor.ko|' \
@@ -53,7 +53,7 @@ case "${KERNEL_FLAVOR}" in
     ;;
   mainline)
     apply_patch_checked "${destination}/pkgs" "${root}/patches/pkgs-mainline.patch"
-    sed -i \
+    sed_in_place \
       -e '\|kernel/drivers/cpufreq/apple-soc-cpufreq.ko|d' \
       -e '\|kernel/drivers/gpio/gpio-macsmc.ko|d' \
       -e '\|kernel/drivers/i2c/busses/i2c-pasemi-core.ko|d' \
@@ -75,7 +75,7 @@ case "${KERNEL_FLAVOR}" in
   mainline-4k)
     apply_patch_checked "${destination}/pkgs" "${root}/patches/pkgs-mainline.patch"
     apply_patch_checked "${destination}/pkgs" "${root}/patches/pkgs-mainline-4k.patch"
-    sed -i \
+    sed_in_place \
       -e '\|kernel/drivers/cpufreq/apple-soc-cpufreq.ko|d' \
       -e '\|kernel/drivers/gpio/gpio-macsmc.ko|d' \
       -e '\|kernel/drivers/i2c/busses/i2c-pasemi-core.ko|d' \

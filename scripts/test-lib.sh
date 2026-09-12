@@ -25,4 +25,13 @@ assert_image_tag v1.15.0-alpha.0-24-g977b61f \
 assert_image_tag test-tag \
   localhost:5000/example/kernel:test-tag@sha256:0123456789abcdef
 
+sed_test_file="$(mktemp "${TMPDIR:-/tmp}/talos-asahi-sed.XXXXXX")"
+trap 'rm -f "${sed_test_file}"' EXIT
+printf 'alpha\n' >"${sed_test_file}"
+sed_in_place -e 's/alpha/beta/' "${sed_test_file}"
+if [[ "$(cat "${sed_test_file}")" != beta ]]; then
+  printf 'portable in-place sed failed\n' >&2
+  exit 1
+fi
+
 printf 'library tests passed\n'
