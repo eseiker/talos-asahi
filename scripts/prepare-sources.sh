@@ -45,6 +45,8 @@ case "${KERNEL_FLAVOR}" in
     apply_patch_checked "${destination}/pkgs" "${root}/patches/pkgs-mainline.patch"
     apply_patch_checked "${destination}/pkgs" "${root}/patches/pkgs-mainline-4k.patch"
     ;;
+  upstream)
+    ;;
 esac
 
 printf 'prepared Talos %s and pkgs %s for %s kernel\n' \

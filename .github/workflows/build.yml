@@ -11,6 +11,7 @@ on:
           - asahi
           - mainline
           - mainline-4k
+          - upstream
           - both
           - all
         default: asahi
@@ -44,7 +45,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kernel_flavor: ${{ (github.event_name == 'push' || inputs.kernel_flavor == 'all') && fromJSON('["asahi","mainline","mainline-4k"]') || inputs.kernel_flavor == 'both' && fromJSON('["asahi","mainline"]') || fromJSON(format('["{0}"]', inputs.kernel_flavor)) }}
+        kernel_flavor: ${{ (github.event_name == 'push' || inputs.kernel_flavor == 'all') && fromJSON('["asahi","mainline","mainline-4k","upstream"]') || inputs.kernel_flavor == 'both' && fromJSON('["asahi","mainline"]') || fromJSON(format('["{0}"]', inputs.kernel_flavor)) }}
     env:
       LOCAL_REGISTRY: localhost:5000
       PROGRESS: plain
@@ -90,6 +91,9 @@ jobs:
               ;;
             mainline-4k)
               artifact_tag="${release_tag}-mainline-4k"
+              ;;
+            upstream)
+              artifact_tag="${release_tag}-upstream"
               ;;
             *)
               echo "unsupported kernel flavor ${KERNEL_FLAVOR}" >&2
@@ -154,14 +158,18 @@ jobs:
           asahi_longhorn_bundle="_release-input/talos-asahi-${GITHUB_REF_NAME}/talos-asahi-${GITHUB_REF_NAME}-longhorn-esp.zip"
           mainline_longhorn_bundle="_release-input/talos-asahi-${GITHUB_REF_NAME}-mainline/talos-asahi-${GITHUB_REF_NAME}-mainline-longhorn-esp.zip"
           mainline_4k_longhorn_bundle="_release-input/talos-asahi-${GITHUB_REF_NAME}-mainline-4k/talos-asahi-${GITHUB_REF_NAME}-mainline-4k-longhorn-esp.zip"
+          upstream_bundle="_release-input/talos-asahi-${GITHUB_REF_NAME}-upstream/talos-asahi-${GITHUB_REF_NAME}-upstream-esp.zip"
+          upstream_longhorn_bundle="_release-input/talos-asahi-${GITHUB_REF_NAME}-upstream/talos-asahi-${GITHUB_REF_NAME}-upstream-longhorn-esp.zip"
 
           for asset in \
             "${asahi_bundle}" \
             "${mainline_bundle}" \
             "${mainline_4k_bundle}" \
+            "${upstream_bundle}" \
             "${asahi_longhorn_bundle}" \
             "${mainline_longhorn_bundle}" \
-            "${mainline_4k_longhorn_bundle}"; do
+            "${mainline_4k_longhorn_bundle}" \
+            "${upstream_longhorn_bundle}"; do
             if [[ ! -f "${asset}" ]]; then
               echo "missing release asset ${asset}" >&2
               exit 1
@@ -173,9 +181,11 @@ jobs:
             "${asahi_bundle}" \
             "${mainline_bundle}" \
             "${mainline_4k_bundle}" \
+            "${upstream_bundle}" \
             "${asahi_longhorn_bundle}" \
             "${mainline_longhorn_bundle}" \
             "${mainline_4k_longhorn_bundle}" \
+            "${upstream_longhorn_bundle}" \
             _release/
           (
             cd _release
