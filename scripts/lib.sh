@@ -15,6 +15,7 @@ load_versions() {
 
   RELEASE_TAG="${TALOS_VERSION}-asahi.${BUILD_REVISION}"
   KERNEL_FLAVOR="${KERNEL_FLAVOR:-asahi}"
+  EXTERNAL_KERNEL_IMAGE=
 
   case "${KERNEL_FLAVOR}" in
     asahi)
@@ -32,16 +33,19 @@ load_versions() {
       KERNEL_PAGE_SIZE="16k"
       ;;
     mainline-4k)
-      if [[ ! "${PKGS_IMAGE_TAG}" =~ -g${PKGS_SHA:0:7}$ ]]; then
-        printf 'PKGS_IMAGE_TAG does not match PKGS_SHA: %s\n' "${PKGS_IMAGE_TAG}" >&2
-        return 1
-      fi
       KERNEL_VERSION="${MAINLINE_KERNEL_VERSION}"
-      KERNEL_IMAGE_TAG="${PKGS_IMAGE_TAG}-mainline-4k"
+      KERNEL_IMAGE_TAG="${MAINLINE_KERNEL_VERSION}-mainline-4k.${BUILD_REVISION}"
       ARTIFACT_TAG="${RELEASE_TAG}-mainline-4k"
       BOOT_UKI="Talos-${TALOS_VERSION}-mainline-4k.efi"
       KERNEL_PAGE_SIZE="4k"
-      OFFICIAL_KERNEL_IMAGE="ghcr.io/siderolabs/kernel:${PKGS_IMAGE_TAG}"
+      ;;
+    v1.15-alpha)
+      KERNEL_VERSION="${TALOS_1_15_ALPHA_KERNEL_VERSION}"
+      KERNEL_IMAGE_TAG="${TALOS_1_15_ALPHA_KERNEL_IMAGE##*:}"
+      ARTIFACT_TAG="${RELEASE_TAG}-v1.15-alpha"
+      BOOT_UKI="Talos-${TALOS_VERSION}-v1.15-alpha.efi"
+      KERNEL_PAGE_SIZE="4k"
+      EXTERNAL_KERNEL_IMAGE="${TALOS_1_15_ALPHA_KERNEL_IMAGE}"
       ;;
     *)
       printf 'unsupported KERNEL_FLAVOR: %s\n' "${KERNEL_FLAVOR}" >&2
@@ -57,7 +61,7 @@ load_versions() {
   export RELEASE_TAG KERNEL_FLAVOR KERNEL_VERSION KERNEL_IMAGE_TAG KERNEL_PAGE_SIZE
   export ARTIFACT_TAG BOOT_UKI PREPARE_UKI BOOT_BUNDLE
   export LONGHORN_BOOT_UKI LONGHORN_PREPARE_UKI LONGHORN_BOOT_BUNDLE
-  export OFFICIAL_KERNEL_IMAGE
+  export EXTERNAL_KERNEL_IMAGE
 }
 
 make_command() {
