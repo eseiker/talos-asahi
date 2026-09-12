@@ -6,6 +6,12 @@ repo_root() {
   cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd
 }
 
+image_ref_tag() {
+  local image_ref="${1%%@*}"
+
+  printf '%s\n' "${image_ref##*:}"
+}
+
 load_versions() {
   local root
   root="$(repo_root)"
@@ -41,7 +47,7 @@ load_versions() {
       ;;
     v1.15)
       KERNEL_VERSION="${TALOS_1_15_KERNEL_VERSION}"
-      KERNEL_IMAGE_TAG="${TALOS_1_15_KERNEL_IMAGE##*:}"
+      KERNEL_IMAGE_TAG="$(image_ref_tag "${TALOS_1_15_KERNEL_IMAGE}")"
       ARTIFACT_TAG="${RELEASE_TAG}-v1.15"
       BOOT_UKI="Talos-${TALOS_VERSION}-v1.15.efi"
       KERNEL_PAGE_SIZE="4k"
