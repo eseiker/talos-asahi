@@ -18,6 +18,7 @@ jobs:
           - asahi
           - mainline
           - mainline-4k
+          - v1.15
     env:
       LOCAL_REGISTRY: localhost:5000
       PROGRESS: plain
@@ -51,6 +52,7 @@ jobs:
           exit 1
 
       - name: Restore per-PR kernel cache
+        if: matrix.kernel_flavor != 'v1.15'
         id: kernel-cache
         uses: actions/cache/restore@v4
         with:
@@ -65,7 +67,7 @@ jobs:
         run: ./scripts/build.sh
 
       - name: Save per-PR kernel cache
-        if: always() && steps.kernel-cache.outputs.cache-hit != 'true'
+        if: always() && matrix.kernel_flavor != 'v1.15' && steps.kernel-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
           path: ${{ runner.temp }}/talos-asahi-kernel-cache

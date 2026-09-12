@@ -38,10 +38,27 @@ reject_module() {
 KERNEL_FLAVOR=asahi "${root}/scripts/prepare-sources.sh" "${validation_root}/asahi"
 KERNEL_FLAVOR=mainline "${root}/scripts/prepare-sources.sh" "${validation_root}/mainline"
 KERNEL_FLAVOR=mainline-4k "${root}/scripts/prepare-sources.sh" "${validation_root}/mainline-4k"
+KERNEL_FLAVOR=v1.15 "${root}/scripts/prepare-sources.sh" "${validation_root}/v1.15"
 
 asahi_modules="${validation_root}/asahi/talos/hack/modules-arm64.txt"
 require_module "${asahi_modules}" kernel/lib/raid/xor/xor.ko
 reject_module "${asahi_modules}" kernel/crypto/xor.ko
+for module in \
+  kernel/drivers/cpufreq/apple-soc-cpufreq.ko \
+  kernel/drivers/gpio/gpio-macsmc.ko \
+  kernel/drivers/i2c/busses/i2c-pasemi-core.ko \
+  kernel/drivers/i2c/busses/i2c-pasemi-platform.ko \
+  kernel/drivers/mfd/macsmc.ko \
+  kernel/drivers/nvme/host/nvme-apple.ko \
+  kernel/drivers/pwm/pwm-apple.ko \
+  kernel/drivers/soc/apple/apple-mailbox.ko \
+  kernel/drivers/soc/apple/apple-rtkit.ko \
+  kernel/drivers/soc/apple/apple-sart.ko \
+  kernel/drivers/spi/spi-apple.ko \
+  kernel/drivers/spmi/spmi-apple-controller.ko \
+  kernel/drivers/watchdog/apple_wdt.ko; do
+  reject_module "${asahi_modules}" "${module}"
+done
 
 for flavor in mainline mainline-4k; do
   mainline_modules="${validation_root}/${flavor}/talos/hack/modules-arm64.txt"
@@ -49,7 +66,31 @@ for flavor in mainline mainline-4k; do
   require_module "${mainline_modules}" kernel/crypto/hkdf.ko
   require_module "${mainline_modules}" kernel/crypto/xor.ko
   reject_module "${mainline_modules}" kernel/lib/raid/xor/xor.ko
+  for module in \
+    kernel/drivers/cpufreq/apple-soc-cpufreq.ko \
+    kernel/drivers/gpio/gpio-macsmc.ko \
+    kernel/drivers/i2c/busses/i2c-pasemi-core.ko \
+    kernel/drivers/i2c/busses/i2c-pasemi-platform.ko \
+    kernel/drivers/mfd/macsmc.ko \
+    kernel/drivers/nvmem/apple_nvmem_spmi.ko \
+    kernel/drivers/nvmem/nvmem-apple-efuses.ko \
+    kernel/drivers/nvme/host/nvme-apple.ko \
+    kernel/drivers/power/reset/macsmc-reboot.ko \
+    kernel/drivers/pwm/pwm-apple.ko \
+    kernel/drivers/soc/apple/apple-mailbox.ko \
+    kernel/drivers/soc/apple/apple-rtkit.ko \
+    kernel/drivers/soc/apple/apple-sart.ko \
+    kernel/drivers/spi/spi-apple.ko \
+    kernel/drivers/spmi/spmi-apple-controller.ko \
+    kernel/drivers/watchdog/apple_wdt.ko; do
+    reject_module "${mainline_modules}" "${module}"
+  done
 done
+
+if ! git -C "${validation_root}/v1.15/pkgs" diff --quiet; then
+  printf 'v1.15 kernel flavor must use the unmodified pinned pkgs source\n' >&2
+  exit 1
+fi
 
 "${root}/scripts/validate-kernel-configs.sh" \
   "${validation_root}/asahi/pkgs" \
@@ -65,5 +106,5 @@ docker run --rm \
     ./internal/app/lifecycle \
     ./internal/app/machined/pkg/runtime/v1alpha1/bootloader/sdboot
 
-printf 'Asahi, mainline 16K, and mainline 4K sources, lifecycle, and sd-boot validation passed for %s\n' \
+printf 'Asahi, mainline 16K, mainline 4K, and v1.15 sources, lifecycle, and sd-boot validation passed for %s\n' \
   "${RELEASE_TAG}"
