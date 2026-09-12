@@ -336,7 +336,7 @@ non-default bundles use `Talos-v1.15.0-alpha.0-mainline.efi`,
 distinguishable.
 
 On upgrade, Talos keeps the currently booted UKI as fallback, writes the next
-same-version UKI as `Talos-v1.13.9~N.efi`, and changes `loader.conf` to select
+same-version UKI as `Talos-vX.Y.Z~N.efi`, and changes `loader.conf` to select
 it. The `~N` suffix is owned by the installer and is independent of the
 downstream release revision. The patch also teaches Talos probe and revert
 paths to read and update that file without requiring persistent UEFI variables.
