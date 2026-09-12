@@ -38,7 +38,7 @@ reject_module() {
 KERNEL_FLAVOR=asahi "${root}/scripts/prepare-sources.sh" "${validation_root}/asahi"
 KERNEL_FLAVOR=mainline "${root}/scripts/prepare-sources.sh" "${validation_root}/mainline"
 KERNEL_FLAVOR=mainline-4k "${root}/scripts/prepare-sources.sh" "${validation_root}/mainline-4k"
-KERNEL_FLAVOR=v1.15-alpha "${root}/scripts/prepare-sources.sh" "${validation_root}/v1.15-alpha"
+KERNEL_FLAVOR=v1.15 "${root}/scripts/prepare-sources.sh" "${validation_root}/v1.15"
 
 asahi_modules="${validation_root}/asahi/talos/hack/modules-arm64.txt"
 require_module "${asahi_modules}" kernel/lib/raid/xor/xor.ko
@@ -52,8 +52,8 @@ for flavor in mainline mainline-4k; do
   reject_module "${mainline_modules}" kernel/lib/raid/xor/xor.ko
 done
 
-if ! git -C "${validation_root}/v1.15-alpha/pkgs" diff --quiet; then
-  printf 'v1.15-alpha kernel flavor must use the unmodified pinned pkgs source\n' >&2
+if ! git -C "${validation_root}/v1.15/pkgs" diff --quiet; then
+  printf 'v1.15 kernel flavor must use the unmodified pinned pkgs source\n' >&2
   exit 1
 fi
 
@@ -71,5 +71,5 @@ docker run --rm \
     ./internal/app/lifecycle \
     ./internal/app/machined/pkg/runtime/v1alpha1/bootloader/sdboot
 
-printf 'Asahi, mainline 16K, mainline 4K, and v1.15 alpha sources, lifecycle, and sd-boot validation passed for %s\n' \
+printf 'Asahi, mainline 16K, mainline 4K, and v1.15 sources, lifecycle, and sd-boot validation passed for %s\n' \
   "${RELEASE_TAG}"

@@ -39,13 +39,13 @@ load_versions() {
       BOOT_UKI="Talos-${TALOS_VERSION}-mainline-4k.efi"
       KERNEL_PAGE_SIZE="4k"
       ;;
-    v1.15-alpha)
-      KERNEL_VERSION="${TALOS_1_15_ALPHA_KERNEL_VERSION}"
-      KERNEL_IMAGE_TAG="${TALOS_1_15_ALPHA_KERNEL_IMAGE##*:}"
-      ARTIFACT_TAG="${RELEASE_TAG}-v1.15-alpha"
-      BOOT_UKI="Talos-${TALOS_VERSION}-v1.15-alpha.efi"
+    v1.15)
+      KERNEL_VERSION="${TALOS_1_15_KERNEL_VERSION}"
+      KERNEL_IMAGE_TAG="${TALOS_1_15_KERNEL_IMAGE##*:}"
+      ARTIFACT_TAG="${RELEASE_TAG}-v1.15"
+      BOOT_UKI="Talos-${TALOS_VERSION}-v1.15.efi"
       KERNEL_PAGE_SIZE="4k"
-      EXTERNAL_KERNEL_IMAGE="${TALOS_1_15_ALPHA_KERNEL_IMAGE}"
+      EXTERNAL_KERNEL_IMAGE="${TALOS_1_15_KERNEL_IMAGE}"
       ;;
     *)
       printf 'unsupported KERNEL_FLAVOR: %s\n' "${KERNEL_FLAVOR}" >&2

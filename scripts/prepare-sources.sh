@@ -45,7 +45,7 @@ case "${KERNEL_FLAVOR}" in
     apply_patch_checked "${destination}/pkgs" "${root}/patches/pkgs-mainline.patch"
     apply_patch_checked "${destination}/pkgs" "${root}/patches/pkgs-mainline-4k.patch"
     ;;
-  v1.15-alpha)
+  v1.15)
     ;;
 esac
 
