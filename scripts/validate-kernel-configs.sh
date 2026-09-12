@@ -15,6 +15,13 @@ cleanup() {
 }
 trap cleanup EXIT
 
+make_cmd="$(make_command)"
+if [[ "${make_cmd}" != make ]]; then
+  mkdir "${kernel_root}/bin"
+  ln -s "$(command -v "${make_cmd}")" "${kernel_root}/bin/make"
+  export PATH="${kernel_root}/bin:${PATH}"
+fi
+
 pkg_var() {
   local pkgs="$1"
   local name="$2"
