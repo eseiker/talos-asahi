@@ -35,6 +35,9 @@ case "${KERNEL_FLAVOR}" in
       -e '\|kernel/arch/arm64/lib/xor-neon.ko|d' \
       -e '\|kernel/crypto/hkdf.ko|d' \
       -e 's|kernel/crypto/xor.ko|kernel/lib/raid/xor/xor.ko|' \
+      -e '\|kernel/drivers/cpufreq/apple-soc-cpufreq.ko|d' \
+      -e '\|kernel/drivers/gpio/gpio-macsmc.ko|d' \
+      -e '\|kernel/drivers/i2c/busses/i2c-pasemi-core.ko|d' \
       -e '\|kernel/drivers/i2c/busses/i2c-pasemi-platform.ko|d' \
       -e '\|kernel/drivers/mfd/macsmc.ko|d' \
       -e '\|kernel/drivers/nvme/host/nvme-apple.ko|d' \
@@ -51,8 +54,14 @@ case "${KERNEL_FLAVOR}" in
   mainline)
     apply_patch_checked "${destination}/pkgs" "${root}/patches/pkgs-mainline.patch"
     sed -i \
+      -e '\|kernel/drivers/cpufreq/apple-soc-cpufreq.ko|d' \
+      -e '\|kernel/drivers/gpio/gpio-macsmc.ko|d' \
+      -e '\|kernel/drivers/i2c/busses/i2c-pasemi-core.ko|d' \
+      -e '\|kernel/drivers/i2c/busses/i2c-pasemi-platform.ko|d' \
+      -e '\|kernel/drivers/mfd/macsmc.ko|d' \
       -e '\|kernel/drivers/nvmem/apple_nvmem_spmi.ko|d' \
       -e '\|kernel/drivers/nvmem/nvmem-apple-efuses.ko|d' \
+      -e '\|kernel/drivers/nvme/host/nvme-apple.ko|d' \
       -e '\|kernel/drivers/power/reset/macsmc-reboot.ko|d' \
       -e '\|kernel/drivers/pwm/pwm-apple.ko|d' \
       -e '\|kernel/drivers/soc/apple/apple-mailbox.ko|d' \
@@ -67,8 +76,14 @@ case "${KERNEL_FLAVOR}" in
     apply_patch_checked "${destination}/pkgs" "${root}/patches/pkgs-mainline.patch"
     apply_patch_checked "${destination}/pkgs" "${root}/patches/pkgs-mainline-4k.patch"
     sed -i \
+      -e '\|kernel/drivers/cpufreq/apple-soc-cpufreq.ko|d' \
+      -e '\|kernel/drivers/gpio/gpio-macsmc.ko|d' \
+      -e '\|kernel/drivers/i2c/busses/i2c-pasemi-core.ko|d' \
+      -e '\|kernel/drivers/i2c/busses/i2c-pasemi-platform.ko|d' \
+      -e '\|kernel/drivers/mfd/macsmc.ko|d' \
       -e '\|kernel/drivers/nvmem/apple_nvmem_spmi.ko|d' \
       -e '\|kernel/drivers/nvmem/nvmem-apple-efuses.ko|d' \
+      -e '\|kernel/drivers/nvme/host/nvme-apple.ko|d' \
       -e '\|kernel/drivers/power/reset/macsmc-reboot.ko|d' \
       -e '\|kernel/drivers/pwm/pwm-apple.ko|d' \
       -e '\|kernel/drivers/soc/apple/apple-mailbox.ko|d' \

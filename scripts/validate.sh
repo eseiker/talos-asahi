@@ -44,6 +44,9 @@ asahi_modules="${validation_root}/asahi/talos/hack/modules-arm64.txt"
 require_module "${asahi_modules}" kernel/lib/raid/xor/xor.ko
 reject_module "${asahi_modules}" kernel/crypto/xor.ko
 for module in \
+  kernel/drivers/cpufreq/apple-soc-cpufreq.ko \
+  kernel/drivers/gpio/gpio-macsmc.ko \
+  kernel/drivers/i2c/busses/i2c-pasemi-core.ko \
   kernel/drivers/i2c/busses/i2c-pasemi-platform.ko \
   kernel/drivers/mfd/macsmc.ko \
   kernel/drivers/nvme/host/nvme-apple.ko \
@@ -64,8 +67,14 @@ for flavor in mainline mainline-4k; do
   require_module "${mainline_modules}" kernel/crypto/xor.ko
   reject_module "${mainline_modules}" kernel/lib/raid/xor/xor.ko
   for module in \
+    kernel/drivers/cpufreq/apple-soc-cpufreq.ko \
+    kernel/drivers/gpio/gpio-macsmc.ko \
+    kernel/drivers/i2c/busses/i2c-pasemi-core.ko \
+    kernel/drivers/i2c/busses/i2c-pasemi-platform.ko \
+    kernel/drivers/mfd/macsmc.ko \
     kernel/drivers/nvmem/apple_nvmem_spmi.ko \
     kernel/drivers/nvmem/nvmem-apple-efuses.ko \
+    kernel/drivers/nvme/host/nvme-apple.ko \
     kernel/drivers/power/reset/macsmc-reboot.ko \
     kernel/drivers/pwm/pwm-apple.ko \
     kernel/drivers/soc/apple/apple-mailbox.ko \
