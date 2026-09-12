@@ -465,11 +465,14 @@ All three branches additionally track the latest stable downstream AsahiLinux
 Asahi kernel tag can therefore produce separate update pull requests and
 compatibility builds for `main`, `release-1.14`, and `release-1.13`.
 
-The tracker resets `BUILD_REVISION=1` for a Talos patch release and increments
-it for Asahi-only rebuilds. It pushes a unique update branch below the matching
+The tracker resets `BUILD_REVISION=1` for a Talos version update. For an
+Asahi-only update, it keeps the current revision when that release tag has not
+been created yet, allowing pending changes to share one release. If the current
+revision is already tagged, it advances beyond the highest existing revision
+for that Talos version. It then pushes a unique update branch below the matching
 release line, dispatches artifact-only Asahi, mainline 16K, mainline 4K, and
-v1.15 compatibility builds, and tries to open a draft pull request back to that release
-branch.
+v1.15 compatibility builds, and tries to open a draft pull request back to that
+release branch.
 Repositories which keep GitHub Actions pull request creation disabled still
 get the update branch and test builds, and can open the pull request manually.
 The tracker never publishes images, moves `latest`, or creates a release tag

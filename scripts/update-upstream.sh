@@ -5,6 +5,8 @@ set -euo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 versions_file="${VERSIONS_FILE:-${root}/versions.env}"
 
+# shellcheck source=scripts/release-revision.sh
+source "${root}/scripts/release-revision.sh"
 # shellcheck source=versions.env
 source "${versions_file}"
 
@@ -322,7 +324,20 @@ fi
 
 build_revision=1
 if [[ "${talos_updated}" == "false" ]]; then
-  build_revision=$((BUILD_REVISION + 1))
+  release_repository="${RELEASE_REPOSITORY:-${GITHUB_REPOSITORY:-}}"
+  if [[ -z "${release_repository}" ]]; then
+    release_repository="$(gh repo view --json nameWithOwner --jq .nameWithOwner)"
+  fi
+
+  existing_release_tags="$(
+    gh api --paginate \
+      "repos/${release_repository}/git/matching-refs/tags/${TALOS_VERSION}-asahi." \
+      --jq '.[].ref' |
+      sed -n 's#^refs/tags/##p'
+  )"
+  build_revision="$(
+    next_build_revision "${TALOS_VERSION}" "${BUILD_REVISION}" <<<"${existing_release_tags}"
+  )"
 fi
 
 temporary_file="$(mktemp "${versions_file}.XXXXXX")"

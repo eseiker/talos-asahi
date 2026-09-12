@@ -34,6 +34,7 @@ reject_module() {
 }
 
 "${root}/scripts/test-release-policy.sh"
+"${root}/scripts/test-release-revision.sh"
 "${root}/scripts/test-prepare.sh"
 
 KERNEL_FLAVOR=asahi "${root}/scripts/prepare-sources.sh" "${validation_root}/asahi"
