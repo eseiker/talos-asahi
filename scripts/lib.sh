@@ -41,7 +41,8 @@ load_versions() {
       ;;
     v1.15)
       KERNEL_VERSION="${TALOS_1_15_KERNEL_VERSION}"
-      KERNEL_IMAGE_TAG="${TALOS_1_15_KERNEL_IMAGE##*:}"
+      KERNEL_IMAGE_TAG="${TALOS_1_15_KERNEL_IMAGE%%@*}"
+      KERNEL_IMAGE_TAG="${KERNEL_IMAGE_TAG##*:}"
       ARTIFACT_TAG="${RELEASE_TAG}-v1.15"
       BOOT_UKI="Talos-${TALOS_VERSION}-v1.15.efi"
       KERNEL_PAGE_SIZE="4k"

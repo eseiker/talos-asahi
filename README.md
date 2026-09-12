@@ -509,7 +509,7 @@ All refs are recorded in `versions.env`. The current build uses:
 - AsahiLinux/linux `77cb8f24c2381a8abb7272d7bbdec548d6426a8a`
 - Mainline Linux `6.18.48` (the kernel source pinned by Talos pkgs)
 - Talos 1.15 compatibility kernel image
-  `ghcr.io/siderolabs/kernel:v1.15.0-alpha.0-24-g977b61f`
+  `ghcr.io/siderolabs/kernel:v1.15.0-alpha.0-24-g977b61f@sha256:70520d9878090efa4d08ec8a6c658b575fd982dedc6f1946267cacb582c987c7`
 
 Do not write a generated raw disk image over the whole internal Apple NVMe.
 That would replace the partition table instead of preserving the Asahi/macOS
