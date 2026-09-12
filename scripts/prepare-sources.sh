@@ -46,6 +46,9 @@ case "${KERNEL_FLAVOR}" in
     apply_patch_checked "${destination}/pkgs" "${root}/patches/pkgs-mainline-4k.patch"
     ;;
   v1.15)
+    sed -i \
+      -e '\|kernel/drivers/virtio/virtio_input.ko|d' \
+      "${destination}/talos/hack/modules-arm64.txt"
     ;;
 esac
 
