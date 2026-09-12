@@ -1,5 +1,5 @@
 diff --git a/Dockerfile b/Dockerfile
-index a946ebf..e9b7c4a 100644
+index 04ea7cb..0a78826 100644
 --- a/Dockerfile
 +++ b/Dockerfile
 @@ -29,6 +29,8 @@ ARG PKG_IGZIP=scratch
@@ -23,7 +23,7 @@ index a946ebf..e9b7c4a 100644
  FROM ${PKG_PIGZ} AS pkg-pigz
  FROM --platform=arm64 ${PKG_PIGZ} AS pkg-pigz-arm64
 diff --git a/Makefile b/Makefile
-index 200dd68..ef2a074 100644
+index 3e3ced2..76d3b87 100644
 --- a/Makefile
 +++ b/Makefile
 @@ -53,6 +53,8 @@ PKG_IGZIP ?= $(PKGS_PREFIX)/igzip:$(PKGS)
@@ -68,7 +68,7 @@ index 68f0b3e..a89347c 100644
 +	CopyAssets             = (*Config).copyAssets
  )
 diff --git a/internal/app/machined/pkg/runtime/v1alpha1/bootloader/sdboot/generate_assets_test.go b/internal/app/machined/pkg/runtime/v1alpha1/bootloader/sdboot/generate_assets_test.go
-index dac46e6..f445802 100644
+index dac46e6..48e2e1a 100644
 --- a/internal/app/machined/pkg/runtime/v1alpha1/bootloader/sdboot/generate_assets_test.go
 +++ b/internal/app/machined/pkg/runtime/v1alpha1/bootloader/sdboot/generate_assets_test.go
 @@ -20,13 +20,14 @@ func TestGenerateAssets(t *testing.T) {
@@ -125,7 +125,7 @@ index 6cd1367..5b2e9d3 100644
 -
 -timeout 10
 diff --git a/internal/app/machined/pkg/runtime/v1alpha1/bootloader/sdboot/sdboot.go b/internal/app/machined/pkg/runtime/v1alpha1/bootloader/sdboot/sdboot.go
-index fa2e44e..3c375e5 100644
+index fa2e44e..6e69d36 100644
 --- a/internal/app/machined/pkg/runtime/v1alpha1/bootloader/sdboot/sdboot.go
 +++ b/internal/app/machined/pkg/runtime/v1alpha1/bootloader/sdboot/sdboot.go
 @@ -136,9 +136,13 @@ func ProbeWithCallback(disk string, options options.ProbeOptions, callback func(
@@ -320,7 +320,7 @@ index fa2e44e..3c375e5 100644
  	sdbootFilename, err := bootloaderutils.Name(opts.Arch)
  	if err != nil {
  		return fmt.Errorf("failed to get sd-boot file path: %w", err)
-@@ -582,6 +610,10 @@ func (c *Config) copyAssets(opts options.InstallOptions, ukiFileName string) err
+@@ -582,5 +610,9 @@ func (c *Config) copyAssets(opts options.InstallOptions, ukiFileName string) err
  		return err
  	}
  
@@ -330,7 +330,6 @@ index fa2e44e..3c375e5 100644
 +
  	return nil
  }
- 
 @@ -663,7 +695,22 @@ func (c *Config) revert() error {
  
  		log.Printf("reverting to previous UKI: %s", file)
@@ -465,7 +464,7 @@ index fa2e44e..3c375e5 100644
 +	return os.WriteFile(path, contents, 0o644)
 +}
 diff --git a/internal/app/machined/pkg/runtime/v1alpha1/bootloader/sdboot/sdboot_test.go b/internal/app/machined/pkg/runtime/v1alpha1/bootloader/sdboot/sdboot_test.go
-index a3b3a6c..17aba04 100644
+index a3b3a6c..2e31e65 100644
 --- a/internal/app/machined/pkg/runtime/v1alpha1/bootloader/sdboot/sdboot_test.go
 +++ b/internal/app/machined/pkg/runtime/v1alpha1/bootloader/sdboot/sdboot_test.go
 @@ -5,6 +5,8 @@
@@ -622,7 +621,7 @@ index a3b3a6c..17aba04 100644
  	t.Parallel()
  
 diff --git a/internal/app/machined/pkg/system/services/machined.go b/internal/app/machined/pkg/system/services/machined.go
-index 239480a..bd7091f 100644
+index a9146ad..835c46e 100644
 --- a/internal/app/machined/pkg/system/services/machined.go
 +++ b/internal/app/machined/pkg/system/services/machined.go
 @@ -50,7 +50,7 @@ var rules = map[string]role.Set{
@@ -632,5 +631,5 @@ index 239480a..bd7091f 100644
 -	"/machine.LifecycleService/Upgrade": role.MakeSet(role.Admin),
 +	"/machine.LifecycleService/Upgrade": role.MakeSet(role.Admin, role.Operator),
  
- 	"/machine.StorageService/Statfs": role.MakeSet(role.Admin, role.Operator, role.Reader),
- 
+ 	"/machine.MachineService/ApplyConfiguration": role.MakeSet(
+ 		role.Admin,
