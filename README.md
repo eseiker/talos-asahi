@@ -15,7 +15,7 @@ worker. This is not an upstream-supported Talos platform.
 - Builds the Asahi kernel with Apple AIC, DART, PCIe, NVMe, SMC, and related
   platform drivers.
 - Uses 16 KiB pages for the Asahi and default mainline flavors. The `mainline-4k`
-  and `upstream` flavors retain Talos' standard 4 KiB page size and rely on
+  flavor retains Talos' standard 4 KiB page size and relies on
   Apple DART's forced identity-domain fallback where the hardware IOMMU
   granule is 16 KiB. That improves container compatibility at the cost of DMA
   isolation and remains experimental.
@@ -50,17 +50,15 @@ Release:
 talos-asahi-v1.15.0-alpha.0-asahi.1-esp.zip
 talos-asahi-v1.15.0-alpha.0-asahi.1-mainline-esp.zip
 talos-asahi-v1.15.0-alpha.0-asahi.1-mainline-4k-esp.zip
-talos-asahi-v1.15.0-alpha.0-asahi.1-upstream-esp.zip
 talos-asahi-v1.15.0-alpha.0-asahi.1-longhorn-esp.zip
 talos-asahi-v1.15.0-alpha.0-asahi.1-mainline-longhorn-esp.zip
 talos-asahi-v1.15.0-alpha.0-asahi.1-mainline-4k-longhorn-esp.zip
-talos-asahi-v1.15.0-alpha.0-asahi.1-upstream-longhorn-esp.zip
 ```
 
 The Asahi flavor is the default. The other flavors are experimental and have a
 smaller set of working Apple drivers. `mainline` uses 16 KiB pages,
-`mainline-4k` builds a custom 4 KiB kernel, and `upstream` reuses the unmodified
-4 KiB kernel image pinned by Talos. Verify the ZIP against the release's
+while `mainline-4k` reuses the unmodified 4 KiB kernel image pinned by Talos.
+Verify the ZIP against the release's
 `SHA256SUMS` before copying it to the internal disk.
 
 The archive has no enclosing top-level directory. Extracting it at the root of
@@ -74,9 +72,9 @@ loader/loader.conf
 ```
 
 The mainline bundle names its final UKI
-`EFI/Linux/Talos-v1.15.0-alpha.0-mainline.efi`; the custom 4 KiB and upstream
-bundles use `-mainline-4k.efi` and `-upstream.efi`. The four Longhorn bundles
-append `-longhorn` to those UKI names and include `iscsi-tools` and
+`EFI/Linux/Talos-v1.15.0-alpha.0-mainline.efi`; the official 4 KiB bundle uses
+`-mainline-4k.efi`. The three Longhorn bundles append `-longhorn` to those UKI
+names and include `iscsi-tools` and
 `util-linux-tools` in the UKI initramfs. None of the bundles contains or
 replaces Asahi's `m1n1/boot.bin`.
 
@@ -200,8 +198,8 @@ installation; it does not create STATE on the first configured boot.
 
 Keep the installer image flavor matched to the ESP bundle. Use
 `:v1.15.0-alpha.0-asahi.1-mainline` with the mainline 16K ZIP,
-`:v1.15.0-alpha.0-asahi.1-mainline-4k` with the custom mainline 4K ZIP, and
-`:v1.15.0-alpha.0-asahi.1-upstream` with the upstream ZIP. Mixing them causes
+and `:v1.15.0-alpha.0-asahi.1-mainline-4k` with the official mainline 4K ZIP.
+Mixing them causes
 the installer to replace the selected test UKI with a different kernel flavor.
 Likewise, use a `*-longhorn-esp.zip` only with the matching installer tag that
 ends in `-longhorn`.
@@ -241,13 +239,12 @@ same patched kernel and installer, plus the Talos `iscsi-tools` and
 ghcr.io/OWNER/talos-asahi/installer:v1.15.0-alpha.0-asahi.1-longhorn
 ghcr.io/OWNER/talos-asahi/installer:v1.15.0-alpha.0-asahi.1-mainline-longhorn
 ghcr.io/OWNER/talos-asahi/installer:v1.15.0-alpha.0-asahi.1-mainline-4k-longhorn
-ghcr.io/OWNER/talos-asahi/installer:v1.15.0-alpha.0-asahi.1-upstream-longhorn
 ```
 
 Choose the Longhorn variant only when those extensions are required. Its ESP
 bundle has the same Apple boot chain and prepare flow, but its final Talos UKI
 is different because the extensions are embedded in the initramfs.
-GitHub Releases contain only the eight ESP ZIPs and their `SHA256SUMS`; installer
+GitHub Releases contain only the six ESP ZIPs and their `SHA256SUMS`; installer
 OCI images are distributed through GHCR instead of duplicated as tar archives.
 
 After the first ESP-based installation is working, upgrade a node with:
@@ -329,8 +326,7 @@ The ZIP uses a stable final UKI name rather than encoding the downstream build
 revision in the ESP filename. Its initial `loader.conf` selects
 `Talos-prepare.efi`; preparation rewrites it to the exact final filename. The
 non-default bundles use `Talos-v1.15.0-alpha.0-mainline.efi`,
-`Talos-v1.15.0-alpha.0-mainline-4k.efi`, and
-`Talos-v1.15.0-alpha.0-upstream.efi` so all kernel flavors remain
+and `Talos-v1.15.0-alpha.0-mainline-4k.efi` so all kernel flavors remain
 distinguishable.
 
 On upgrade, Talos keeps the currently booted UKI as fallback, writes the next
@@ -354,18 +350,18 @@ rollback from every early-boot failure.
 ## CI operation
 
 `Validate patches` runs for pull requests and pushes to `main`. It verifies the
-source pins, the unmodified upstream pkgs source, and the Asahi, mainline 16K,
-and mainline 4K patch stacks, applies every patch with `git apply --check`,
+source pins, the unmodified pkgs source used by the official 4K kernel, and the
+Asahi and mainline 16K patch stacks, applies every patch with `git apply --check`,
 compile-checks the lifecycle package, runs the focused sd-boot unit tests, and
 exercises META/STATE creation, pending recovery, physical GPT sorting,
 idempotency, and invalid-geometry rejection against disposable disk images.
 
 `Build and publish Asahi Talos` runs manually or when a matching release tag is
 pushed. Manual runs build the selected kernel flavor; `both` retains the older
-Asahi-plus-mainline selection and `all` selects all four. A matching release
-tag builds the Asahi, mainline 16K, mainline 4K, and upstream flavors in
-parallel on separate native ARM64 runners. The custom flavors build a kernel;
-the upstream flavor pulls Talos' pinned kernel image. Every job builds the
+Asahi-plus-mainline selection and `all` selects all three. A matching release
+tag builds the Asahi, mainline 16K, and mainline 4K flavors in parallel on
+separate native ARM64 runners. The Asahi and mainline 16K flavors build a kernel;
+mainline 4K pulls Talos' pinned kernel image. Every job builds the
 patched Talos installer base and imager, then verifies the final artifacts and
 installer binary. On tag builds, all jobs publish flavor-specific immutable
 images:
@@ -377,12 +373,9 @@ ghcr.io/OWNER/talos-asahi/installer:<release>-mainline
 ghcr.io/OWNER/talos-asahi/installer:<release>-mainline-longhorn
 ghcr.io/OWNER/talos-asahi/installer:<release>-mainline-4k
 ghcr.io/OWNER/talos-asahi/installer:<release>-mainline-4k-longhorn
-ghcr.io/OWNER/talos-asahi/installer:<release>-upstream
-ghcr.io/OWNER/talos-asahi/installer:<release>-upstream-longhorn
 ghcr.io/OWNER/talos-asahi/kernel:<asahi-kernel-release>
 ghcr.io/OWNER/talos-asahi/kernel:<mainline-kernel-release>
 ghcr.io/OWNER/talos-asahi/kernel:<mainline-4k-kernel-release>
-ghcr.io/OWNER/talos-asahi/kernel:<upstream-kernel-release>
 ```
 
 Only the regular Asahi installer moves `installer:latest`; Longhorn and
@@ -400,20 +393,18 @@ separate from release images and is reused across Talos-only patch revisions.
 Local builds do not use a remote cache unless `KERNEL_CACHE_IMAGE` is set
 explicitly.
 
-The experimental `mainline`, `mainline-4k`, and `upstream` flavors can be
-selected directly in a manual run and are also built alongside Asahi for every
+The experimental `mainline` and `mainline-4k` flavors can be selected directly
+in a manual run and are also built alongside Asahi for every
 matching release tag. They use upstream Linux 6.18.49 and the Apple SoC drivers
-available there. `mainline` builds a custom 16 KiB kernel; `mainline-4k` builds
-a custom 4 KiB kernel; `upstream` pulls the unmodified 4 KiB
-`ghcr.io/siderolabs/kernel` image identified by the pkgs tag in the pinned Talos
-Makefile. Their outputs carry matching flavor suffixes. A tag build publishes
-installer and kernel images and adds all ESP ZIPs to the GitHub Release; a
-manual build publishes only when `publish` is selected. The custom mainline
-build caches are isolated in GHCR at:
+available there. `mainline` builds a custom 16 KiB kernel; `mainline-4k` pulls
+the unmodified 4 KiB `ghcr.io/siderolabs/kernel` image identified by the pkgs tag
+in the pinned Talos Makefile. Their outputs carry matching flavor suffixes. A
+tag build publishes installer and kernel images and adds all ESP ZIPs to the
+GitHub Release; a manual build publishes only when `publish` is selected. The
+custom mainline build cache is isolated in GHCR at:
 
 ```text
 build-cache:kernel-arm64-mainline
-build-cache:kernel-arm64-mainline-4k
 ```
 
 On Apple DART instances whose hardware page size is 16 KiB, the 4 KiB kernel
@@ -428,9 +419,9 @@ wired 10 GbE interface. Wi-Fi, Bluetooth, GPU acceleration, USB-C data ports,
 RTC, CPU idle, and suspend are not expected to work with Linux 6.18 on this
 machine. Keep the known-good downstream Asahi UKI on the ESP while testing.
 
-A matching Git tag also creates one GitHub Release after all four builds
-succeed. It contains separate Asahi, mainline 16K, mainline 4K, and upstream
-ESP ZIPs plus one combined checksum file. Each ZIP contains systemd-boot, a
+A matching Git tag also creates one GitHub Release after all three builds
+succeed. It contains separate Asahi, mainline 16K, and mainline 4K ESP ZIPs plus
+one combined checksum file. Each ZIP contains systemd-boot, a
 matching one-time prepare UKI, the final Talos UKI, and `loader.conf` in their
 ESP-relative paths. Individual files are not published because the ZIP is the
 atomic installation overlay. The regular and Longhorn installer OCI archives
@@ -454,9 +445,8 @@ kernel.
 
 The tracker resets `BUILD_REVISION=1` for a Talos patch release and increments
 it for Asahi-only rebuilds. It pushes a unique update branch below the matching
-release line, dispatches artifact-only Asahi, mainline 16K, mainline 4K, and
-upstream builds, and tries to open a draft pull request back to that release
-branch.
+release line, dispatches artifact-only Asahi, mainline 16K, and mainline 4K
+builds, and tries to open a draft pull request back to that release branch.
 Repositories which keep GitHub Actions pull request creation disabled still
 get the update branch and test builds, and can open the pull request manually.
 The tracker never publishes images, moves `latest`, or creates a release tag
@@ -469,9 +459,9 @@ current pins that tag is `v1.15.0-alpha.0-asahi.1`.
 ## Local validation and build
 
 Validation builds the small prepare rootfs, tests its GPT transaction against
-disposable disk images, and runs `olddefconfig` for the Asahi, mainline 16K, and
-mainline 4K kernels. It also verifies that the upstream flavor leaves the
-pinned pkgs source untouched. It prints each custom kernel config diff and
+disposable disk images, and runs `olddefconfig` for the Asahi and mainline 16K
+kernels. It also verifies that the official mainline 4K flavor leaves the pinned
+pkgs source untouched. It prints each custom kernel config diff and
 rejects changes to the requested Apple platform or page-size settings:
 
 ```sh
@@ -501,7 +491,7 @@ All refs are recorded in `versions.env`. The current build uses:
 - AsahiLinux/linux `asahi-7.1.12-1`
   (`ca9a850f237f98949996eefb8980371a5d58c886`)
 - Mainline Linux `6.18.49` (the kernel source pinned by Talos pkgs)
-- Upstream kernel image `ghcr.io/siderolabs/kernel:v1.15.0-alpha.0-24-g977b61f`
+- Official 4K kernel image `ghcr.io/siderolabs/kernel:v1.15.0-alpha.0-24-g977b61f`
 
 Do not write a generated raw disk image over the whole internal Apple NVMe.
 That would replace the partition table instead of preserving the Asahi/macOS

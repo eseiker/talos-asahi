@@ -46,10 +46,10 @@ kernel_cache_input_hash="$(
   fi
 fi
 
-if [[ "${KERNEL_FLAVOR}" == "upstream" ]]; then
-  printf 'pulling upstream kernel image %s\n' "${UPSTREAM_KERNEL_IMAGE}"
-  docker pull --platform linux/arm64 "${UPSTREAM_KERNEL_IMAGE}"
-  docker tag "${UPSTREAM_KERNEL_IMAGE}" "${kernel_image}"
+if [[ "${KERNEL_FLAVOR}" == "mainline-4k" ]]; then
+  printf 'pulling official kernel image %s\n' "${OFFICIAL_KERNEL_IMAGE}"
+  docker pull --platform linux/arm64 "${OFFICIAL_KERNEL_IMAGE}"
+  docker tag "${OFFICIAL_KERNEL_IMAGE}" "${kernel_image}"
 elif [[ -n "${kernel_image_cache_file}" && -f "${kernel_image_cache_file}" ]]; then
   printf 'loading cached %s kernel image %s\n' "${KERNEL_FLAVOR}" "${kernel_image}"
   docker image rm --force "${kernel_image}" >/dev/null 2>&1 || true
@@ -227,7 +227,7 @@ LONGHORN_BOOT_UKI=${LONGHORN_BOOT_UKI}
 LONGHORN_PREPARE_UKI=${LONGHORN_PREPARE_UKI}
 LONGHORN_BOOT_BUNDLE=${LONGHORN_BOOT_BUNDLE}
 LOCAL_KERNEL_IMAGE=${kernel_image}
-UPSTREAM_KERNEL_IMAGE=${UPSTREAM_KERNEL_IMAGE:-}
+OFFICIAL_KERNEL_IMAGE=${OFFICIAL_KERNEL_IMAGE:-}
 LOCAL_INSTALLER_BASE_IMAGE=${installer_base_image}
 LOCAL_IMAGER_IMAGE=${imager_image}
 EOF
