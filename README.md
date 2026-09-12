@@ -387,8 +387,15 @@ ghcr.io/OWNER/talos-asahi/kernel:<mainline-4k-kernel-release>
 ghcr.io/OWNER/talos-asahi/kernel:<v1.15-kernel-release>
 ```
 
-Only the regular Asahi installer moves `installer:latest`; Longhorn and
-mainline variants cannot replace that tag.
+Only the regular Asahi installer can move `installer:latest`; Longhorn and
+other kernel flavors cannot replace that tag. Tag builds first publish only
+immutable version tags and create their GitHub Release with Latest disabled.
+A serialized promotion job then compares stable
+`vMAJOR.MINOR.PATCH-asahi.REVISION` tags and moves both the GitHub Latest
+release and `installer:latest` only when the candidate is at least as new as
+the current stable release. Publishing an older maintenance branch later
+therefore cannot move either alias backwards. Manual builds can still move
+`installer:latest` explicitly with `publish_latest`.
 
 Each flavor job reuses its selected kernel and built imager to generate both
 installer archives. CI inspects the Longhorn initramfs for both extension
@@ -442,6 +449,8 @@ ESP-relative paths. Individual files are not published because the ZIP is the
 atomic installation overlay. The regular and Longhorn installer OCI archives
 and `build.env` metadata remain available only in the short-lived Actions
 artifacts. The repository itself does not track a binary output directory.
+Tags containing a Talos `alpha`, `beta`, or `rc` suffix create GitHub
+prereleases and never enter stable Latest promotion.
 
 `Track upstream releases` runs daily from the default branch and can also be
 dispatched manually. It checks `release-1.13` and `release-1.14` independently.
