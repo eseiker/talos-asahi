@@ -214,7 +214,6 @@ fi
 
 talos_sha="${TALOS_SHA}"
 pkgs_sha="${PKGS_SHA}"
-pkgs_image_tag="${PKGS_IMAGE_TAG:-}"
 mainline_kernel_version="${MAINLINE_KERNEL_VERSION}"
 iscsi_tools_image="${ISCSI_TOOLS_IMAGE}"
 util_linux_tools_image="${UTIL_LINUX_TOOLS_IMAGE}"
@@ -222,11 +221,10 @@ util_linux_tools_image="${UTIL_LINUX_TOOLS_IMAGE}"
 if [[ "${talos_updated}" == "true" || "${force_update}" == "true" ]]; then
   talos_sha="$(gh api "repos/siderolabs/talos/commits/${target_version}" --jq .sha)"
   talos_makefile="$(gh api "repos/siderolabs/talos/contents/Makefile?ref=${target_version}" --jq .content | base64 --decode)"
-  pkgs_image_tag="$(sed -n 's/^PKGS ?=[[:space:]]*//p' <<<"${talos_makefile}")"
-  pkgs_abbrev="$(sed -n 's/.*-g\([0-9a-f][0-9a-f]*\)$/\1/p' <<<"${pkgs_image_tag}")"
+  pkgs_abbrev="$(sed -n 's/^PKGS ?=.*-g\([0-9a-f][0-9a-f]*\)$/\1/p' <<<"${talos_makefile}")"
 
-  if [[ -z "${pkgs_image_tag}" || -z "${pkgs_abbrev}" ]]; then
-    printf 'failed to extract the Talos pkgs image tag from %s Makefile\n' "${target_version}" >&2
+  if [[ -z "${pkgs_abbrev}" ]]; then
+    printf 'failed to extract the Talos pkgs commit from %s Makefile\n' "${target_version}" >&2
     exit 1
   fi
 
@@ -281,7 +279,6 @@ awk \
   -v talos_version="${target_version}" \
   -v talos_sha="${talos_sha}" \
   -v pkgs_sha="${pkgs_sha}" \
-  -v pkgs_image_tag="${pkgs_image_tag}" \
   -v asahi_tag="${target_asahi_tag}" \
   -v asahi_version="${asahi_version}" \
   -v asahi_sha="${asahi_sha}" \
@@ -295,7 +292,6 @@ awk \
     /^TALOS_VERSION=/ { print "TALOS_VERSION=" talos_version; next }
     /^TALOS_SHA=/ { print "TALOS_SHA=" talos_sha; next }
     /^PKGS_SHA=/ { print "PKGS_SHA=" pkgs_sha; next }
-    /^PKGS_IMAGE_TAG=/ { print "PKGS_IMAGE_TAG=" pkgs_image_tag; next }
     /^ASAHI_KERNEL_TAG=/ { print "ASAHI_KERNEL_TAG=" asahi_tag; next }
     /^ASAHI_KERNEL_VERSION=/ { print "ASAHI_KERNEL_VERSION=" asahi_version; next }
     /^ASAHI_KERNEL_SHA=/ { print "ASAHI_KERNEL_SHA=" asahi_sha; next }
@@ -318,7 +314,6 @@ trap - EXIT
 emit_output updated true
 emit_output talos_sha "${talos_sha}"
 emit_output pkgs_sha "${pkgs_sha}"
-emit_output pkgs_image_tag "${pkgs_image_tag}"
 emit_output asahi_kernel_tag "${target_asahi_tag}"
 emit_output asahi_kernel_version "${asahi_version}"
 emit_output asahi_kernel_sha "${asahi_sha}"

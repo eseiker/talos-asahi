@@ -29,7 +29,7 @@ kernel_image_cache_file="${KERNEL_IMAGE_CACHE_FILE:-}"
 kernel_cache_input_hash=""
 if [[ -z "${kernel_image_cache_file}" && -n "${KERNEL_CACHE_DIR:-}" ]]; then
   kernel_image_cache_file="${KERNEL_CACHE_DIR}/kernel-image.tar"
-kernel_cache_input_hash="$(
+  kernel_cache_input_hash="$(
     {
       printf '%s\0' "${kernel_image}"
       cat \
@@ -46,11 +46,7 @@ kernel_cache_input_hash="$(
   fi
 fi
 
-if [[ -n "${EXTERNAL_KERNEL_IMAGE:-}" ]]; then
-  printf 'pulling external kernel image %s\n' "${EXTERNAL_KERNEL_IMAGE}"
-  docker pull --platform linux/arm64 "${EXTERNAL_KERNEL_IMAGE}"
-  docker tag "${EXTERNAL_KERNEL_IMAGE}" "${kernel_image}"
-elif [[ -n "${kernel_image_cache_file}" && -f "${kernel_image_cache_file}" ]]; then
+if [[ -n "${kernel_image_cache_file}" && -f "${kernel_image_cache_file}" ]]; then
   printf 'loading cached %s kernel image %s\n' "${KERNEL_FLAVOR}" "${kernel_image}"
   docker image rm --force "${kernel_image}" >/dev/null 2>&1 || true
   docker load --input "${kernel_image_cache_file}"
@@ -211,7 +207,6 @@ ASAHI_KERNEL_SHA=${ASAHI_KERNEL_SHA}
 ASAHI_KERNEL_SHA256=${ASAHI_KERNEL_SHA256}
 ASAHI_KERNEL_SHA512=${ASAHI_KERNEL_SHA512}
 MAINLINE_KERNEL_VERSION=${MAINLINE_KERNEL_VERSION}
-PKGS_IMAGE_TAG=${PKGS_IMAGE_TAG:-}
 KERNEL_FLAVOR=${KERNEL_FLAVOR}
 KERNEL_VERSION=${KERNEL_VERSION}
 KERNEL_PAGE_SIZE=${KERNEL_PAGE_SIZE}
@@ -227,7 +222,6 @@ LONGHORN_BOOT_UKI=${LONGHORN_BOOT_UKI}
 LONGHORN_PREPARE_UKI=${LONGHORN_PREPARE_UKI}
 LONGHORN_BOOT_BUNDLE=${LONGHORN_BOOT_BUNDLE}
 LOCAL_KERNEL_IMAGE=${kernel_image}
-EXTERNAL_KERNEL_IMAGE=${EXTERNAL_KERNEL_IMAGE:-}
 LOCAL_INSTALLER_BASE_IMAGE=${installer_base_image}
 LOCAL_IMAGER_IMAGE=${imager_image}
 EOF

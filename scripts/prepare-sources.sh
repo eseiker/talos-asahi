@@ -13,10 +13,20 @@ mkdir -p "${destination}"
 clone_pinned https://github.com/siderolabs/talos.git "${TALOS_SHA}" "${destination}/talos"
 clone_pinned https://github.com/siderolabs/pkgs.git "${PKGS_SHA}" "${destination}/pkgs"
 
-apply_patch_checked "${destination}/talos" "${root}/patches/talos-asahi.patch"
+talos_patch="${root}/patches/talos-asahi.patch"
+pkgs_asahi_patch="${root}/patches/pkgs-asahi.patch"
+
+case "${TALOS_VERSION}" in
+  v1.13.*)
+    talos_patch="${root}/patches/talos-asahi-v1.13.patch"
+    pkgs_asahi_patch="${root}/patches/pkgs-asahi-v1.13.patch"
+    ;;
+esac
+
+apply_patch_checked "${destination}/talos" "${talos_patch}"
 case "${KERNEL_FLAVOR}" in
   asahi)
-    apply_patch_checked "${destination}/pkgs" "${root}/patches/pkgs-asahi.patch"
+    apply_patch_checked "${destination}/pkgs" "${pkgs_asahi_patch}"
     if [[ ! "${ASAHI_KERNEL_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ||
           ! "${ASAHI_KERNEL_SHA}" =~ ^[0-9a-f]{40}$ ||
           ! "${ASAHI_KERNEL_SHA256}" =~ ^[0-9a-f]{64}$ ||
@@ -35,66 +45,15 @@ case "${KERNEL_FLAVOR}" in
       -e '\|kernel/arch/arm64/lib/xor-neon.ko|d' \
       -e '\|kernel/crypto/hkdf.ko|d' \
       -e 's|kernel/crypto/xor.ko|kernel/lib/raid/xor/xor.ko|' \
-      -e '\|kernel/drivers/cpufreq/apple-soc-cpufreq.ko|d' \
-      -e '\|kernel/drivers/gpio/gpio-macsmc.ko|d' \
-      -e '\|kernel/drivers/i2c/busses/i2c-pasemi-core.ko|d' \
-      -e '\|kernel/drivers/i2c/busses/i2c-pasemi-platform.ko|d' \
-      -e '\|kernel/drivers/mfd/macsmc.ko|d' \
-      -e '\|kernel/drivers/nvme/host/nvme-apple.ko|d' \
-      -e '\|kernel/drivers/pwm/pwm-apple.ko|d' \
-      -e '\|kernel/drivers/soc/apple/apple-mailbox.ko|d' \
-      -e '\|kernel/drivers/soc/apple/apple-rtkit.ko|d' \
-      -e '\|kernel/drivers/soc/apple/apple-sart.ko|d' \
-      -e '\|kernel/drivers/spi/spi-apple.ko|d' \
-      -e '\|kernel/drivers/spmi/spmi-apple-controller.ko|d' \
-      -e '\|kernel/drivers/watchdog/apple_wdt.ko|d' \
       -e '/kernel\/drivers\/net\/ethernet\/stmicro\/stmmac\/stmmac-pci\.ko/a kernel/drivers/net/ethernet/stmicro/stmmac/stmmac_libpci.ko' \
       "${destination}/talos/hack/modules-arm64.txt"
     ;;
   mainline)
     apply_patch_checked "${destination}/pkgs" "${root}/patches/pkgs-mainline.patch"
-    sed -i \
-      -e '\|kernel/drivers/cpufreq/apple-soc-cpufreq.ko|d' \
-      -e '\|kernel/drivers/gpio/gpio-macsmc.ko|d' \
-      -e '\|kernel/drivers/i2c/busses/i2c-pasemi-core.ko|d' \
-      -e '\|kernel/drivers/i2c/busses/i2c-pasemi-platform.ko|d' \
-      -e '\|kernel/drivers/mfd/macsmc.ko|d' \
-      -e '\|kernel/drivers/nvmem/apple_nvmem_spmi.ko|d' \
-      -e '\|kernel/drivers/nvmem/nvmem-apple-efuses.ko|d' \
-      -e '\|kernel/drivers/nvme/host/nvme-apple.ko|d' \
-      -e '\|kernel/drivers/power/reset/macsmc-reboot.ko|d' \
-      -e '\|kernel/drivers/pwm/pwm-apple.ko|d' \
-      -e '\|kernel/drivers/soc/apple/apple-mailbox.ko|d' \
-      -e '\|kernel/drivers/soc/apple/apple-rtkit.ko|d' \
-      -e '\|kernel/drivers/soc/apple/apple-sart.ko|d' \
-      -e '\|kernel/drivers/spi/spi-apple.ko|d' \
-      -e '\|kernel/drivers/spmi/spmi-apple-controller.ko|d' \
-      -e '\|kernel/drivers/watchdog/apple_wdt.ko|d' \
-      "${destination}/talos/hack/modules-arm64.txt"
     ;;
   mainline-4k)
     apply_patch_checked "${destination}/pkgs" "${root}/patches/pkgs-mainline.patch"
     apply_patch_checked "${destination}/pkgs" "${root}/patches/pkgs-mainline-4k.patch"
-    sed -i \
-      -e '\|kernel/drivers/cpufreq/apple-soc-cpufreq.ko|d' \
-      -e '\|kernel/drivers/gpio/gpio-macsmc.ko|d' \
-      -e '\|kernel/drivers/i2c/busses/i2c-pasemi-core.ko|d' \
-      -e '\|kernel/drivers/i2c/busses/i2c-pasemi-platform.ko|d' \
-      -e '\|kernel/drivers/mfd/macsmc.ko|d' \
-      -e '\|kernel/drivers/nvmem/apple_nvmem_spmi.ko|d' \
-      -e '\|kernel/drivers/nvmem/nvmem-apple-efuses.ko|d' \
-      -e '\|kernel/drivers/nvme/host/nvme-apple.ko|d' \
-      -e '\|kernel/drivers/power/reset/macsmc-reboot.ko|d' \
-      -e '\|kernel/drivers/pwm/pwm-apple.ko|d' \
-      -e '\|kernel/drivers/soc/apple/apple-mailbox.ko|d' \
-      -e '\|kernel/drivers/soc/apple/apple-rtkit.ko|d' \
-      -e '\|kernel/drivers/soc/apple/apple-sart.ko|d' \
-      -e '\|kernel/drivers/spi/spi-apple.ko|d' \
-      -e '\|kernel/drivers/spmi/spmi-apple-controller.ko|d' \
-      -e '\|kernel/drivers/watchdog/apple_wdt.ko|d' \
-      "${destination}/talos/hack/modules-arm64.txt"
-    ;;
-  v1.15)
     ;;
 esac
 
