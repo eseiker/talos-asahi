@@ -92,6 +92,17 @@ done
 
 v1_15_modules="${validation_root}/v1.15/talos/hack/modules-arm64.txt"
 reject_module "${v1_15_modules}" kernel/drivers/virtio/virtio_input.ko
+for module in \
+  kernel/drivers/nvme/host/nvme-apple.ko \
+  kernel/drivers/soc/apple/apple-rtkit.ko \
+  kernel/drivers/soc/apple/apple-sart.ko \
+  kernel/drivers/soc/apple/apple-mailbox.ko \
+  kernel/drivers/nvmem/nvmem-apple-efuses.ko \
+  kernel/drivers/nvmem/apple_nvmem_spmi.ko \
+  kernel/drivers/spmi/spmi-apple-controller.ko \
+  kernel/drivers/watchdog/apple_wdt.ko; do
+  require_module "${v1_15_modules}" "${module}"
+done
 
 if ! git -C "${validation_root}/v1.15/pkgs" diff --quiet; then
   printf 'v1.15 kernel flavor must use the unmodified pinned pkgs source\n' >&2

@@ -95,9 +95,24 @@ case "${KERNEL_FLAVOR}" in
       "${destination}/talos/hack/modules-arm64.txt"
     ;;
   v1.15)
-    sed -i \
+    sed_in_place \
       -e '\|kernel/drivers/virtio/virtio_input.ko|d' \
       "${destination}/talos/hack/modules-arm64.txt"
+    # The upstream v1.15 kernel builds the Apple platform storage chain as
+    # modules, but Talos v1.14.1's hack/modules-arm64.txt is a whitelist which
+    # names none of them, so they never reach the image and nvme_apple fails to
+    # load with "module not found". nvme-apple depends on RTKit, SART and
+    # Mailbox, so every dependency has to be listed as well.
+    cat >>"${destination}/talos/hack/modules-arm64.txt" <<'MODULES'
+kernel/drivers/nvme/host/nvme-apple.ko
+kernel/drivers/soc/apple/apple-rtkit.ko
+kernel/drivers/soc/apple/apple-sart.ko
+kernel/drivers/soc/apple/apple-mailbox.ko
+kernel/drivers/nvmem/nvmem-apple-efuses.ko
+kernel/drivers/nvmem/apple_nvmem_spmi.ko
+kernel/drivers/spmi/spmi-apple-controller.ko
+kernel/drivers/watchdog/apple_wdt.ko
+MODULES
     ;;
 esac
 
