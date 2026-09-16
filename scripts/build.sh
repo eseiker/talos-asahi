@@ -161,19 +161,10 @@ generate_metal_uki() {
   local destination="$1"
   shift
 
-  local extra_args=()
-  local kernel_arg
-  # EXTRA_KERNEL_ARGS is a space-separated list, so split it deliberately.
-  # shellcheck disable=SC2086
-  for kernel_arg in ${EXTRA_KERNEL_ARGS:-}; do
-    extra_args+=(--extra-kernel-arg "${kernel_arg}")
-  done
-
   docker run --rm \
     --user "$(id -u):$(id -g)" \
     -v "${OUT_DIR}:/out" \
-    "${imager_image}" metal --arch arm64 --output-kind uki \
-    ${extra_args[@]+"${extra_args[@]}"} "$@"
+    "${imager_image}" metal --arch arm64 --output-kind uki "$@"
 
   docker run --rm \
     --user "$(id -u):$(id -g)" \
