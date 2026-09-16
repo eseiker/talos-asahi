@@ -61,11 +61,10 @@ load_versions() {
       BOOT_UKI="Talos-${TALOS_VERSION}-v1.15.efi"
       KERNEL_PAGE_SIZE="4k"
       EXTERNAL_KERNEL_IMAGE="${TALOS_1_15_KERNEL_IMAGE}"
-      # The upstream v1.15 kernel builds the Apple NVMe controller as a module
-      # (CONFIG_NVME_APPLE=m) and never autoloads it, so Talos cannot read the
-      # META partition and the node drops to maintenance. Load it from the
-      # kernel command line before the boot sequence reads META.
-      EXTRA_KERNEL_ARGS="talos.kernel.modules=nvme_apple"
+      # The Apple storage modules are now shipped in the image by
+      # prepare-sources.sh. Leave EXTRA_KERNEL_ARGS unset to test whether udev
+      # autoloads them on its own; if it does, the talos.kernel.modules early
+      # loader can be dropped from the Talos patch entirely.
       ;;
     *)
       printf 'unsupported KERNEL_FLAVOR: %s\n' "${KERNEL_FLAVOR}" >&2
