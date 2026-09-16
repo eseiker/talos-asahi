@@ -633,3 +633,86 @@ index a9146ad..835c46e 100644
  
  	"/machine.MachineService/ApplyConfiguration": role.MakeSet(
  		role.Admin,
+diff --git a/internal/app/machined/pkg/runtime/v1alpha1/v1alpha1_sequencer.go b/internal/app/machined/pkg/runtime/v1alpha1/v1alpha1_sequencer.go
+index 490b014..a987913 100644
+--- a/internal/app/machined/pkg/runtime/v1alpha1/v1alpha1_sequencer.go
++++ b/internal/app/machined/pkg/runtime/v1alpha1/v1alpha1_sequencer.go
+@@ -93,6 +93,9 @@ func (*Sequencer) Initialize(r runtime.Runtime) []runtime.Phase {
+ 			StartAuditd,
+ 			StartSyslogd,
+ 			StartContainerd,
++		).Append(
++			"earlyKernelModules",
++			LoadEarlyKernelModules,
+ 		).Append(
+ 			"meta",
+ 			ReloadMeta,
+diff --git a/internal/app/machined/pkg/runtime/v1alpha1/v1alpha1_sequencer_tasks.go b/internal/app/machined/pkg/runtime/v1alpha1/v1alpha1_sequencer_tasks.go
+index ca14189..9064a70 100644
+--- a/internal/app/machined/pkg/runtime/v1alpha1/v1alpha1_sequencer_tasks.go
++++ b/internal/app/machined/pkg/runtime/v1alpha1/v1alpha1_sequencer_tasks.go
+@@ -27,6 +27,7 @@ import (
+ 	"github.com/dustin/go-humanize"
+ 	"github.com/foxboron/go-uefi/efi"
+ 	"github.com/hashicorp/go-multierror"
++	"github.com/pmorjan/kmod"
+ 	pprocfs "github.com/prometheus/procfs"
+ 	"github.com/siderolabs/gen/xslices"
+ 	"github.com/siderolabs/go-blockdevice/v2/block"
+@@ -85,6 +86,40 @@ func WaitForUdevd(runtime.Sequence, any) (runtime.TaskExecutionFunc, string) {
+ 	}, "waitForUdevd"
+ }
+ 
++// LoadEarlyKernelModules loads the kernel modules named on the kernel command line.
++//
++// This runs before the machine configuration is read, so it can bring up a storage
++// controller whose driver is built as a module and whose disk holds that very
++// configuration. It is a no-op when the parameter is absent.
++func LoadEarlyKernelModules(runtime.Sequence, any) (runtime.TaskExecutionFunc, string) {
++	return func(_ context.Context, logger *log.Logger, _ runtime.Runtime) error {
++		param := procfs.ProcCmdline().Get(constants.KernelParamKernelModules).First()
++		if param == nil {
++			return nil
++		}
++
++		manager, err := kmod.New()
++		if err != nil {
++			return fmt.Errorf("error initializing kmod manager: %w", err)
++		}
++
++		for _, name := range strings.Split(*param, ",") {
++			name = strings.TrimSpace(name)
++			if name == "" {
++				continue
++			}
++
++			logger.Printf("loading kernel module %q from the kernel command line", name)
++
++			if err = manager.Load(name, "", 0); err != nil {
++				return fmt.Errorf("error loading module %q: %w", name, err)
++			}
++		}
++
++		return nil
++	}, "loadEarlyKernelModules"
++}
++
+ // EnforceKSPPRequirements represents the EnforceKSPPRequirements task.
+ func EnforceKSPPRequirements(runtime.Sequence, any) (runtime.TaskExecutionFunc, string) {
+ 	return func(ctx context.Context, logger *log.Logger, r runtime.Runtime) (err error) {
+diff --git a/pkg/machinery/constants/constants.go b/pkg/machinery/constants/constants.go
+index 8df7a5a..66c84a3 100644
+--- a/pkg/machinery/constants/constants.go
++++ b/pkg/machinery/constants/constants.go
+@@ -76,6 +76,11 @@ const (
+ 	// disk to wipe on the next boot and reboot.
+ 	KernelParamWipe = "talos.experimental.wipe"
+ 
++	// KernelParamKernelModules is the kernel parameter name for specifying kernel
++	// modules to load early in the boot sequence, before the machine configuration
++	// is read. The value is a comma-separated list of module names.
++	KernelParamKernelModules = "talos.kernel.modules"
++
+ 	// KernelParamDeviceSettleTime is the kernel parameter name for specifying the
+ 	// extra device settle timeout.
+ 	KernelParamDeviceSettleTime = "talos.device.settle_time"
