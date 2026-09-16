@@ -30,6 +30,7 @@ load_versions() {
   RELEASE_TAG="${TALOS_VERSION}-asahi.${BUILD_REVISION}"
   KERNEL_FLAVOR="${KERNEL_FLAVOR:-asahi}"
   EXTERNAL_KERNEL_IMAGE=
+  EXTRA_KERNEL_ARGS=
 
   case "${KERNEL_FLAVOR}" in
     asahi)
@@ -60,6 +61,11 @@ load_versions() {
       BOOT_UKI="Talos-${TALOS_VERSION}-v1.15.efi"
       KERNEL_PAGE_SIZE="4k"
       EXTERNAL_KERNEL_IMAGE="${TALOS_1_15_KERNEL_IMAGE}"
+      # The upstream v1.15 kernel builds the Apple NVMe controller as a module
+      # (CONFIG_NVME_APPLE=m) and never autoloads it, so Talos cannot read the
+      # META partition and the node drops to maintenance. Load it from the
+      # kernel command line before the boot sequence reads META.
+      EXTRA_KERNEL_ARGS="talos.kernel.modules=nvme_apple"
       ;;
     *)
       printf 'unsupported KERNEL_FLAVOR: %s\n' "${KERNEL_FLAVOR}" >&2
@@ -75,7 +81,7 @@ load_versions() {
   export RELEASE_TAG KERNEL_FLAVOR KERNEL_VERSION KERNEL_IMAGE_TAG KERNEL_PAGE_SIZE
   export ARTIFACT_TAG BOOT_UKI PREPARE_UKI BOOT_BUNDLE
   export LONGHORN_BOOT_UKI LONGHORN_PREPARE_UKI LONGHORN_BOOT_BUNDLE
-  export EXTERNAL_KERNEL_IMAGE
+  export EXTERNAL_KERNEL_IMAGE EXTRA_KERNEL_ARGS
 }
 
 make_command() {
