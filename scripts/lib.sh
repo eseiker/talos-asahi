@@ -30,7 +30,6 @@ load_versions() {
   RELEASE_TAG="${TALOS_VERSION}-asahi.${BUILD_REVISION}"
   KERNEL_FLAVOR="${KERNEL_FLAVOR:-asahi}"
   EXTERNAL_KERNEL_IMAGE=
-  EXTRA_KERNEL_ARGS=
 
   case "${KERNEL_FLAVOR}" in
     asahi)
@@ -61,10 +60,6 @@ load_versions() {
       BOOT_UKI="Talos-${TALOS_VERSION}-v1.15.efi"
       KERNEL_PAGE_SIZE="4k"
       EXTERNAL_KERNEL_IMAGE="${TALOS_1_15_KERNEL_IMAGE}"
-      # The Apple storage modules are now shipped in the image by
-      # prepare-sources.sh. Leave EXTRA_KERNEL_ARGS unset to test whether udev
-      # autoloads them on its own; if it does, the talos.kernel.modules early
-      # loader can be dropped from the Talos patch entirely.
       ;;
     *)
       printf 'unsupported KERNEL_FLAVOR: %s\n' "${KERNEL_FLAVOR}" >&2
@@ -80,7 +75,7 @@ load_versions() {
   export RELEASE_TAG KERNEL_FLAVOR KERNEL_VERSION KERNEL_IMAGE_TAG KERNEL_PAGE_SIZE
   export ARTIFACT_TAG BOOT_UKI PREPARE_UKI BOOT_BUNDLE
   export LONGHORN_BOOT_UKI LONGHORN_PREPARE_UKI LONGHORN_BOOT_BUNDLE
-  export EXTERNAL_KERNEL_IMAGE EXTRA_KERNEL_ARGS
+  export EXTERNAL_KERNEL_IMAGE
 }
 
 make_command() {
