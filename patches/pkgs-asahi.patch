@@ -1,5 +1,5 @@
 diff --git a/Pkgfile b/Pkgfile
-index fe2d14d..7a4f1cf 100644
+index 42bc68f..5ec1fed 100644
 --- a/Pkgfile
 +++ b/Pkgfile
 @@ -103,10 +103,11 @@ vars:
@@ -7,9 +7,9 @@ index fe2d14d..7a4f1cf 100644
    kspp_sha512: 2b40c41ed0347a339053aef61c838b5131dd583fb0d1ac8f3361040361ba868724ad16dfdc13023ff2b0f51f32c0aba605316d5d76f9fc6c1d50d90b4ceedead
  
 -  # renovate: datasource=git-tags extractVersion=^v(?<version>.*)$ depName=git://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git
--  linux_version: 6.18.51
--  linux_sha256: ba2f60f858bf4d1f929101faa356c93dc8b925b17aaa9f95eabd4627758df613
--  linux_sha512: 482c68c483c8317db0266fcdce54bc7028ba2a2e0d410af5995258efa21d4f8246dcbded43c09da7cc0b272148ee34c422d840d66dbf7ebb9d57c295dc770bea
+-  linux_version: 6.18.54
+-  linux_sha256: 9df30b02dd8102bbd0be52556288ef6889ddbe7f1ddb96fbf847d0becf3eacac
+-  linux_sha512: 37b4d8f6334345b769d2eccfb9a93e9d401b89ec582215d6a7035c94045ffc926fd332760d29e126285869c0b36c7d7c65a75c380d06ceb46bc15913a36009e3
 +  # Asahi Linux downstream kernel, pinned for reproducible Talos builds.
 +  linux_version: ASAHI_KERNEL_VERSION
 +  linux_ref: ASAHI_KERNEL_SHA
