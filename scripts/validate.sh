@@ -104,7 +104,7 @@ docker run --rm \
   -v "${validation_root}/asahi/talos:/src" \
   -v talos-asahi-go-mod:/go/pkg/mod \
   -v talos-asahi-go-build:/root/.cache/go-build \
-  -w /src golang:1.26 \
+  -w /src golang:1.27 \
   go test \
     ./internal/app/lifecycle \
     ./internal/app/machined/pkg/runtime/v1alpha1/bootloader/sdboot

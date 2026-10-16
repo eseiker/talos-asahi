@@ -625,8 +625,10 @@ diff --git a/internal/app/machined/pkg/system/services/machined.go b/internal/ap
 index 239480a..bd7091f 100644
 --- a/internal/app/machined/pkg/system/services/machined.go
 +++ b/internal/app/machined/pkg/system/services/machined.go
-@@ -50,7 +50,7 @@ var rules = map[string]role.Set{
- 	"/machine.DebugService/ContainerRun": role.MakeSet(role.Admin),
+@@ -57,9 +57,9 @@ var rules = map[string]role.Set{
+ 	"/machine.DebugService/ContainerRun":       role.MakeSet(role.Admin),
+ 	"/machine.HypervisorService/ConsoleStream": role.MakeSet(role.Admin),
+ 	"/machine.HypervisorService/VNCStream":     role.MakeSet(role.Admin),
  
  	"/machine.LifecycleService/Install": role.MakeSet(role.Admin),
 -	"/machine.LifecycleService/Upgrade": role.MakeSet(role.Admin),
