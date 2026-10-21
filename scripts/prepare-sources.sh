@@ -25,12 +25,12 @@ case "${KERNEL_FLAVOR}" in
       exit 1
     fi
 
-    sed_in_place \
-      -e "s/ASAHI_KERNEL_VERSION/${ASAHI_KERNEL_VERSION}/" \
-      -e "s/ASAHI_KERNEL_SHA256/${ASAHI_KERNEL_SHA256}/" \
-      -e "s/ASAHI_KERNEL_SHA512/${ASAHI_KERNEL_SHA512}/" \
-      -e "s/ASAHI_KERNEL_SHA/${ASAHI_KERNEL_SHA}/" \
-      "${destination}/pkgs/Pkgfile"
+    set_asahi_kernel_pin \
+      "${destination}/pkgs/Pkgfile" \
+      "${ASAHI_KERNEL_VERSION}" \
+      "${ASAHI_KERNEL_SHA}" \
+      "${ASAHI_KERNEL_SHA256}" \
+      "${ASAHI_KERNEL_SHA512}"
     sed_in_place \
       -e '\|kernel/arch/arm64/lib/xor-neon.ko|d' \
       -e '\|kernel/crypto/hkdf.ko|d' \

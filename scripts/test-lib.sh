@@ -37,4 +37,34 @@ if [[ "$(cat "${sed_test_file}")" != $'alpha\nbeta\ndelta' ]]; then
   exit 1
 fi
 
+pkgfile_test="$(mktemp "${TMPDIR:-/tmp}/talos-asahi-pkgfile.XXXXXX")"
+trap 'rm -f "${sed_test_file}" "${pkgfile_test}"' EXIT
+cat >"${pkgfile_test}" <<'PKGFILE'
+  linux_version: 6.18.57
+  linux_ref: old-ref
+  linux_sha256: old-sha256
+  linux_sha512: old-sha512
+PKGFILE
+set_asahi_kernel_pin \
+  "${pkgfile_test}" \
+  7.1.13 \
+  0123456789abcdef0123456789abcdef01234567 \
+  0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef \
+  0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+if ! grep -Fxq '  linux_version: 7.1.13' "${pkgfile_test}" ||
+  ! grep -Fxq '  linux_ref: 0123456789abcdef0123456789abcdef01234567' "${pkgfile_test}" ||
+  ! grep -Fxq '  linux_sha256: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef' "${pkgfile_test}" ||
+  ! grep -Fxq '  linux_sha512: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef' "${pkgfile_test}"; then
+  printf 'Asahi kernel pin was not applied to upstream Pkgfile\n' >&2
+  exit 1
+fi
+if [[ "$(grep -c '^  linux_ref:' "${pkgfile_test}")" -ne 1 ]]; then
+  printf 'expected exactly one Asahi kernel ref in Pkgfile\n' >&2
+  exit 1
+fi
+if grep -q '^diff --git a/Pkgfile ' "${root}/patches/pkgs-asahi.patch"; then
+  printf 'Asahi patch must not depend on the upstream Linux pin\n' >&2
+  exit 1
+fi
+
 printf 'library tests passed\n'

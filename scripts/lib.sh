@@ -20,6 +20,24 @@ sed_in_place() {
   fi
 }
 
+set_asahi_kernel_pin() {
+  local pkgfile="$1"
+  local version="$2"
+  local sha="$3"
+  local sha256="$4"
+  local sha512="$5"
+  local add_linux_ref="/^  linux_version:/a\\
+  linux_ref: ${sha}"
+
+  sed_in_place \
+    -e '/^  linux_ref:/d' \
+    -e "s/^  linux_version:.*/  linux_version: ${version}/" \
+    -e "${add_linux_ref}" \
+    -e "s/^  linux_sha256:.*/  linux_sha256: ${sha256}/" \
+    -e "s/^  linux_sha512:.*/  linux_sha512: ${sha512}/" \
+    "${pkgfile}"
+}
+
 load_versions() {
   local root
   root="$(repo_root)"
