@@ -30,6 +30,7 @@ set_asahi_kernel_pin() {
   linux_ref: ${sha}"
 
   sed_in_place \
+    -e 's|^  # renovate:.*linux.git$|  # Asahi Linux downstream kernel, pinned for reproducible Talos builds.|' \
     -e '/^  linux_ref:/d' \
     -e "s/^  linux_version:.*/  linux_version: ${version}/" \
     -e "${add_linux_ref}" \

@@ -40,6 +40,7 @@ fi
 pkgfile_test="$(mktemp "${TMPDIR:-/tmp}/talos-asahi-pkgfile.XXXXXX")"
 trap 'rm -f "${sed_test_file}" "${pkgfile_test}"' EXIT
 cat >"${pkgfile_test}" <<'PKGFILE'
+  # renovate: datasource=git-tags extractVersion=^v(?<version>.*)$ depName=git://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git
   linux_version: 6.18.57
   linux_ref: old-ref
   linux_sha256: old-sha256
@@ -52,6 +53,7 @@ set_asahi_kernel_pin \
   0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef \
   0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
 if ! grep -Fxq '  linux_version: 7.1.13' "${pkgfile_test}" ||
+  ! grep -Fxq '  # Asahi Linux downstream kernel, pinned for reproducible Talos builds.' "${pkgfile_test}" ||
   ! grep -Fxq '  linux_ref: 0123456789abcdef0123456789abcdef01234567' "${pkgfile_test}" ||
   ! grep -Fxq '  linux_sha256: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef' "${pkgfile_test}" ||
   ! grep -Fxq '  linux_sha512: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef' "${pkgfile_test}"; then
