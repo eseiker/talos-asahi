@@ -45,8 +45,9 @@ KERNEL_FLAVOR=v1.15 "${root}/scripts/prepare-sources.sh" "${validation_root}/v1.
 
 asahi_modules="${validation_root}/asahi/talos/hack/modules-arm64.txt"
 require_module "${asahi_modules}" kernel/lib/raid/xor/xor.ko
+require_module "${asahi_modules}" kernel/lib/raid6/raid6_pq.ko
+require_module "${asahi_modules}" kernel/drivers/infiniband/core/ib_uverbs_support.ko
 reject_module "${asahi_modules}" kernel/crypto/xor.ko
-reject_module "${asahi_modules}" kernel/lib/raid6/raid6_pq.ko
 for module in \
   kernel/drivers/cpufreq/apple-soc-cpufreq.ko \
   kernel/drivers/gpio/gpio-macsmc.ko \
