@@ -35,6 +35,7 @@ case "${KERNEL_FLAVOR}" in
       -e '\|kernel/arch/arm64/lib/xor-neon.ko|d' \
       -e '\|kernel/crypto/hkdf.ko|d' \
       -e 's|kernel/crypto/xor.ko|kernel/lib/raid/xor/xor.ko|' \
+      -e '\|kernel/lib/raid6/raid6_pq.ko|d' \
       -e '\|kernel/drivers/cpufreq/apple-soc-cpufreq.ko|d' \
       -e '\|kernel/drivers/gpio/gpio-macsmc.ko|d' \
       -e '\|kernel/drivers/i2c/busses/i2c-pasemi-core.ko|d' \
