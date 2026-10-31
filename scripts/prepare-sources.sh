@@ -105,6 +105,7 @@ case "${KERNEL_FLAVOR}" in
       -e 's|kernel/lib/raid/raid6/raid6_pq.ko|kernel/lib/raid6/raid6_pq.ko|' \
       -e 's|kernel/lib/raid/xor/xor.ko|kernel/crypto/xor.ko|' \
       -e $'/kernel\\/crypto\\/async_tx\\/async_xor\\.ko/a\\\nkernel/crypto/hkdf.ko' \
+      -e $'/kernel\\/crypto\\/xor\\.ko/a\\\nkernel/arch/arm64/lib/xor-neon.ko' \
       -e $'/kernel\\/drivers\\/gpu\\/drm\\/drm_ttm_helper\\.ko/a\\\nkernel/drivers/gpu/drm/drm_vram_helper.ko' \
       "${destination}/talos/hack/modules-arm64.txt"
     ;;

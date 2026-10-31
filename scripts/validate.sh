@@ -108,6 +108,7 @@ done
 for module in \
   kernel/crypto/hkdf.ko \
   kernel/crypto/xor.ko \
+  kernel/arch/arm64/lib/xor-neon.ko \
   kernel/drivers/gpu/drm/drm_vram_helper.ko \
   kernel/lib/raid6/raid6_pq.ko; do
   require_module "${v1_15_modules}" "${module}"
