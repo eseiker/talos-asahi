@@ -65,10 +65,10 @@ done
 
 for flavor in mainline mainline-4k; do
   mainline_modules="${validation_root}/${flavor}/talos/hack/modules-arm64.txt"
-  require_module "${mainline_modules}" kernel/arch/arm64/lib/xor-neon.ko
-  require_module "${mainline_modules}" kernel/crypto/hkdf.ko
-  require_module "${mainline_modules}" kernel/crypto/xor.ko
-  reject_module "${mainline_modules}" kernel/lib/raid/xor/xor.ko
+  require_module "${mainline_modules}" kernel/lib/raid/xor/xor.ko
+  reject_module "${mainline_modules}" kernel/arch/arm64/lib/xor-neon.ko
+  reject_module "${mainline_modules}" kernel/crypto/hkdf.ko
+  reject_module "${mainline_modules}" kernel/crypto/xor.ko
   for module in \
     kernel/drivers/cpufreq/apple-soc-cpufreq.ko \
     kernel/drivers/gpio/gpio-macsmc.ko \
@@ -94,6 +94,26 @@ if ! git -C "${validation_root}/v1.15/pkgs" diff --quiet; then
   printf 'v1.15 kernel flavor must use the unmodified pinned pkgs source\n' >&2
   exit 1
 fi
+
+v1_15_modules="${validation_root}/v1.15/talos/hack/modules-arm64.txt"
+for module in \
+  kernel/drivers/acpi/apei/ghes-nvidia.ko \
+  kernel/drivers/infiniband/core/ib_uverbs_support.ko \
+  kernel/drivers/net/bonding/bonding.ko \
+  kernel/drivers/net/ethernet/intel/libie/libie_cp.ko \
+  kernel/drivers/net/ethernet/intel/libie/libie_pci.ko \
+  kernel/drivers/net/ethernet/stmicro/stmmac/stmmac_libpci.ko; do
+  reject_module "${v1_15_modules}" "${module}"
+done
+for module in \
+  kernel/crypto/hkdf.ko \
+  kernel/crypto/xor.ko \
+  kernel/drivers/gpu/drm/drm_vram_helper.ko \
+  kernel/lib/raid6/raid6_pq.ko; do
+  require_module "${v1_15_modules}" "${module}"
+done
+reject_module "${v1_15_modules}" kernel/lib/raid/raid6/raid6_pq.ko
+reject_module "${v1_15_modules}" kernel/lib/raid/xor/xor.ko
 
 "${root}/scripts/validate-kernel-configs.sh" \
   "${validation_root}/asahi/pkgs" \

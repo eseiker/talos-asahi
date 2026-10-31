@@ -65,7 +65,7 @@ cp "${asahi_pkgs}/kernel/build/config-arm64" "${asahi_source}/.config"
 KERNEL_CONFIG_LD=ld "${asahi_pkgs}/kernel/build/configure-asahi-arm64.sh" "${asahi_source}"
 
 mainline_version="$(pkg_var "${mainline_pkgs}" linux_version)"
-if [[ ! "${mainline_version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+if [[ ! "${mainline_version}" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
   printf 'invalid mainline kernel version in %s\n' "${mainline_pkgs}/Pkgfile" >&2
   exit 1
 fi
