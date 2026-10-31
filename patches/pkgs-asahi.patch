@@ -20,16 +20,25 @@ index 5866c3a..73c5626 100644
    libaio_version: 0.3.113
 diff --git a/kernel/build/configure-asahi-arm64.sh b/kernel/build/configure-asahi-arm64.sh
 new file mode 100755
-index 0000000..6ff7a74
+index 0000000..7d9c858
 --- /dev/null
 +++ b/kernel/build/configure-asahi-arm64.sh
-@@ -0,0 +1,104 @@
+@@ -0,0 +1,113 @@
 +#!/usr/bin/env bash
 +
 +set -euo pipefail
 +
 +source_dir="${1:-/src}"
 +cd "${source_dir}"
++
++# Keep resolve_btfids from falling back to Alpine's incompatible host UAPI.
++cat > tools/include/uapi/asm/ptrace.h <<'EOF'
++#if defined(__aarch64__)
++#include "../../../../arch/arm64/include/uapi/asm/ptrace.h"
++#else
++#include_next <asm/ptrace.h>
++#endif
++EOF
 +
 +# Apple PCIe still requires a 16 KiB kernel page size in the Asahi
 +# downstream tree. Keep boot-critical platform drivers built-in.
