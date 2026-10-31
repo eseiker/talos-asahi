@@ -7,9 +7,9 @@ index 5866c3a..73c5626 100644
    kspp_sha512: 55f35ce46a0d44746780b9e47fef0d6383096ef519686022afdfdaae571a7d8749c02f45a0c6e9f07c36a4e8f51dc05b4e49131354eab8c892fc2690274face4
  
 -  # renovate: datasource=git-tags extractVersion=^v(?<version>.*)$ depName=git://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git
--  linux_version: 6.18.55
--  linux_sha256: f410638061a165c12f42ab871d2f3fcd525515359b5faeee80969cff84524df9
--  linux_sha512: 4c8c6ec5a87d695a2ab2141ed75101911996f24a1c3cbb8497d9642e168a7145a724f12433aa46febe85b8a4257ceeff3ee4a4e1765ab08f1fec904ca2a42663
+-  linux_version: 7.3
+-  linux_sha256: 87363c24f10e06321eb362765521094e94471f6bff8bce2d6b3e40f39f004953
+-  linux_sha512: 14b99ea7cc2adc0798a183ac5f3e184587f2496c3b2d1d53b625574389891c69e8be375b5d03875fe859b09ac9314aa15da604087274ba815671135bd6a0e590
 +  # Asahi Linux downstream kernel, pinned for reproducible Talos builds.
 +  linux_version: ASAHI_KERNEL_VERSION
 +  linux_ref: ASAHI_KERNEL_SHA

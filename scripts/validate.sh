@@ -65,10 +65,10 @@ done
 
 for flavor in mainline mainline-4k; do
   mainline_modules="${validation_root}/${flavor}/talos/hack/modules-arm64.txt"
-  require_module "${mainline_modules}" kernel/arch/arm64/lib/xor-neon.ko
-  require_module "${mainline_modules}" kernel/crypto/hkdf.ko
-  require_module "${mainline_modules}" kernel/crypto/xor.ko
-  reject_module "${mainline_modules}" kernel/lib/raid/xor/xor.ko
+  require_module "${mainline_modules}" kernel/lib/raid/xor/xor.ko
+  reject_module "${mainline_modules}" kernel/arch/arm64/lib/xor-neon.ko
+  reject_module "${mainline_modules}" kernel/crypto/hkdf.ko
+  reject_module "${mainline_modules}" kernel/crypto/xor.ko
   for module in \
     kernel/drivers/cpufreq/apple-soc-cpufreq.ko \
     kernel/drivers/gpio/gpio-macsmc.ko \
