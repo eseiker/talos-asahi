@@ -102,11 +102,18 @@ for module in \
   kernel/drivers/net/bonding/bonding.ko \
   kernel/drivers/net/ethernet/intel/libie/libie_cp.ko \
   kernel/drivers/net/ethernet/intel/libie/libie_pci.ko \
-  kernel/drivers/net/ethernet/stmicro/stmmac/stmmac_libpci.ko \
-  kernel/lib/raid/raid6/raid6_pq.ko \
-  kernel/lib/raid/xor/xor.ko; do
+  kernel/drivers/net/ethernet/stmicro/stmmac/stmmac_libpci.ko; do
   reject_module "${v1_15_modules}" "${module}"
 done
+for module in \
+  kernel/crypto/hkdf.ko \
+  kernel/crypto/xor.ko \
+  kernel/drivers/gpu/drm/drm_vram_helper.ko \
+  kernel/lib/raid6/raid6_pq.ko; do
+  require_module "${v1_15_modules}" "${module}"
+done
+reject_module "${v1_15_modules}" kernel/lib/raid/raid6/raid6_pq.ko
+reject_module "${v1_15_modules}" kernel/lib/raid/xor/xor.ko
 
 "${root}/scripts/validate-kernel-configs.sh" \
   "${validation_root}/asahi/pkgs" \
