@@ -48,6 +48,8 @@ require_module "${asahi_modules}" kernel/lib/raid/xor/xor.ko
 reject_module "${asahi_modules}" kernel/crypto/xor.ko
 require_module "${asahi_modules}" kernel/lib/raid/raid6/raid6_pq.ko
 reject_module "${asahi_modules}" kernel/lib/raid6/raid6_pq.ko
+require_module "${asahi_modules}" kernel/drivers/infiniband/core/ib_uverbs.ko
+require_module "${asahi_modules}" kernel/drivers/infiniband/core/ib_uverbs_support.ko
 for module in \
   kernel/drivers/cpufreq/apple-soc-cpufreq.ko \
   kernel/drivers/gpio/gpio-macsmc.ko \
@@ -73,6 +75,8 @@ for flavor in mainline mainline-4k; do
   reject_module "${mainline_modules}" kernel/lib/raid/xor/xor.ko
   require_module "${mainline_modules}" kernel/lib/raid6/raid6_pq.ko
   reject_module "${mainline_modules}" kernel/lib/raid/raid6/raid6_pq.ko
+  require_module "${mainline_modules}" kernel/drivers/infiniband/core/ib_uverbs.ko
+  reject_module "${mainline_modules}" kernel/drivers/infiniband/core/ib_uverbs_support.ko
   for module in \
     kernel/drivers/cpufreq/apple-soc-cpufreq.ko \
     kernel/drivers/gpio/gpio-macsmc.ko \

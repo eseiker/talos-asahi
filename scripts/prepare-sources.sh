@@ -50,6 +50,7 @@ case "${KERNEL_FLAVOR}" in
       -e '\|kernel/drivers/spmi/spmi-apple-controller.ko|d' \
       -e '\|kernel/drivers/watchdog/apple_wdt.ko|d' \
       -e $'/kernel\\/drivers\\/net\\/ethernet\\/stmicro\\/stmmac\\/stmmac-pci\\.ko/a\\\nkernel/drivers/net/ethernet/stmicro/stmmac/stmmac_libpci.ko' \
+      -e $'/kernel\\/drivers\\/infiniband\\/core\\/ib_uverbs\\.ko/a\\\nkernel/drivers/infiniband/core/ib_uverbs_support.ko' \
       "${destination}/talos/hack/modules-arm64.txt"
     ;;
   mainline)
