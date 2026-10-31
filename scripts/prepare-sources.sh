@@ -95,6 +95,16 @@ case "${KERNEL_FLAVOR}" in
       "${destination}/talos/hack/modules-arm64.txt"
     ;;
   v1.15)
+    sed_in_place \
+      -e '\|kernel/drivers/acpi/apei/ghes-nvidia.ko|d' \
+      -e '\|kernel/drivers/infiniband/core/ib_uverbs_support.ko|d' \
+      -e '\|kernel/drivers/net/bonding/bonding.ko|d' \
+      -e '\|kernel/drivers/net/ethernet/intel/libie/libie_cp.ko|d' \
+      -e '\|kernel/drivers/net/ethernet/intel/libie/libie_pci.ko|d' \
+      -e '\|kernel/drivers/net/ethernet/stmicro/stmmac/stmmac_libpci.ko|d' \
+      -e '\|kernel/lib/raid/raid6/raid6_pq.ko|d' \
+      -e '\|kernel/lib/raid/xor/xor.ko|d' \
+      "${destination}/talos/hack/modules-arm64.txt"
     ;;
 esac
 

@@ -95,6 +95,19 @@ if ! git -C "${validation_root}/v1.15/pkgs" diff --quiet; then
   exit 1
 fi
 
+v1_15_modules="${validation_root}/v1.15/talos/hack/modules-arm64.txt"
+for module in \
+  kernel/drivers/acpi/apei/ghes-nvidia.ko \
+  kernel/drivers/infiniband/core/ib_uverbs_support.ko \
+  kernel/drivers/net/bonding/bonding.ko \
+  kernel/drivers/net/ethernet/intel/libie/libie_cp.ko \
+  kernel/drivers/net/ethernet/intel/libie/libie_pci.ko \
+  kernel/drivers/net/ethernet/stmicro/stmmac/stmmac_libpci.ko \
+  kernel/lib/raid/raid6/raid6_pq.ko \
+  kernel/lib/raid/xor/xor.ko; do
+  reject_module "${v1_15_modules}" "${module}"
+done
+
 "${root}/scripts/validate-kernel-configs.sh" \
   "${validation_root}/asahi/pkgs" \
   "${validation_root}/mainline/pkgs" \
