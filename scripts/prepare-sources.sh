@@ -50,6 +50,7 @@ case "${KERNEL_FLAVOR}" in
       -e '\|kernel/drivers/spi/spi-apple.ko|d' \
       -e '\|kernel/drivers/spmi/spmi-apple-controller.ko|d' \
       -e '\|kernel/drivers/watchdog/apple_wdt.ko|d' \
+      -e $'/kernel\\/drivers\\/gpu\\/drm\\/drm_ttm_helper\\.ko/a\\\nkernel/drivers/gpu/drm/drm_vram_helper.ko' \
       -e '\|kernel/drivers/net/ethernet/intel/libie/libie_cp.ko|d' \
       -e '\|kernel/drivers/net/ethernet/intel/libie/libie_pci.ko|d' \
       -e $'/kernel\\/drivers\\/net\\/ethernet\\/stmicro\\/stmmac\\/stmmac-pci\\.ko/a\\\nkernel/drivers/net/ethernet/stmicro/stmmac/stmmac_libpci.ko' \

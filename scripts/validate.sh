@@ -45,6 +45,7 @@ KERNEL_FLAVOR=v1.15 "${root}/scripts/prepare-sources.sh" "${validation_root}/v1.
 
 asahi_modules="${validation_root}/asahi/talos/hack/modules-arm64.txt"
 require_module "${asahi_modules}" kernel/lib/raid/xor/xor.ko
+require_module "${asahi_modules}" kernel/drivers/gpu/drm/drm_vram_helper.ko
 reject_module "${asahi_modules}" kernel/crypto/xor.ko
 for module in \
   kernel/drivers/cpufreq/apple-soc-cpufreq.ko \
