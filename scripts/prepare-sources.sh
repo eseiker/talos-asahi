@@ -40,6 +40,8 @@ case "${KERNEL_FLAVOR}" in
       -e '\|kernel/drivers/i2c/busses/i2c-pasemi-core.ko|d' \
       -e '\|kernel/drivers/i2c/busses/i2c-pasemi-platform.ko|d' \
       -e '\|kernel/drivers/mfd/macsmc.ko|d' \
+      -e '\|kernel/drivers/net/ethernet/intel/libie/libie_cp.ko|d' \
+      -e '\|kernel/drivers/net/ethernet/intel/libie/libie_pci.ko|d' \
       -e '\|kernel/drivers/nvme/host/nvme-apple.ko|d' \
       -e '\|kernel/drivers/pwm/pwm-apple.ko|d' \
       -e '\|kernel/drivers/soc/apple/apple-mailbox.ko|d' \
@@ -48,6 +50,9 @@ case "${KERNEL_FLAVOR}" in
       -e '\|kernel/drivers/spi/spi-apple.ko|d' \
       -e '\|kernel/drivers/spmi/spmi-apple-controller.ko|d' \
       -e '\|kernel/drivers/watchdog/apple_wdt.ko|d' \
+      -e $'/kernel\\/drivers\\/gpu\\/drm\\/drm_ttm_helper\\.ko/a\\\nkernel/drivers/gpu/drm/drm_vram_helper.ko' \
+      -e '\|kernel/drivers/net/ethernet/intel/libie/libie_cp.ko|d' \
+      -e '\|kernel/drivers/net/ethernet/intel/libie/libie_pci.ko|d' \
       -e $'/kernel\\/drivers\\/net\\/ethernet\\/stmicro\\/stmmac\\/stmmac-pci\\.ko/a\\\nkernel/drivers/net/ethernet/stmicro/stmmac/stmmac_libpci.ko' \
       "${destination}/talos/hack/modules-arm64.txt"
     ;;
@@ -95,6 +100,19 @@ case "${KERNEL_FLAVOR}" in
       "${destination}/talos/hack/modules-arm64.txt"
     ;;
   v1.15)
+    sed_in_place \
+      -e '\|kernel/drivers/acpi/apei/ghes-nvidia.ko|d' \
+      -e '\|kernel/drivers/infiniband/core/ib_uverbs_support.ko|d' \
+      -e '\|kernel/drivers/net/bonding/bonding.ko|d' \
+      -e '\|kernel/drivers/net/ethernet/intel/libie/libie_cp.ko|d' \
+      -e '\|kernel/drivers/net/ethernet/intel/libie/libie_pci.ko|d' \
+      -e '\|kernel/drivers/net/ethernet/stmicro/stmmac/stmmac_libpci.ko|d' \
+      -e 's|kernel/lib/raid/raid6/raid6_pq.ko|kernel/lib/raid6/raid6_pq.ko|' \
+      -e 's|kernel/lib/raid/xor/xor.ko|kernel/crypto/xor.ko|' \
+      -e $'/kernel\\/crypto\\/async_tx\\/async_xor\\.ko/a\\\nkernel/crypto/hkdf.ko' \
+      -e $'/kernel\\/crypto\\/xor\\.ko/a\\\nkernel/arch/arm64/lib/xor-neon.ko' \
+      -e $'/kernel\\/drivers\\/gpu\\/drm\\/drm_ttm_helper\\.ko/a\\\nkernel/drivers/gpu/drm/drm_vram_helper.ko' \
+      "${destination}/talos/hack/modules-arm64.txt"
     ;;
 esac
 
