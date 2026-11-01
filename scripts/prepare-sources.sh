@@ -40,6 +40,8 @@ case "${KERNEL_FLAVOR}" in
       -e '\|kernel/drivers/i2c/busses/i2c-pasemi-core.ko|d' \
       -e '\|kernel/drivers/i2c/busses/i2c-pasemi-platform.ko|d' \
       -e '\|kernel/drivers/mfd/macsmc.ko|d' \
+      -e '\|kernel/drivers/net/ethernet/intel/libie/libie_cp.ko|d' \
+      -e '\|kernel/drivers/net/ethernet/intel/libie/libie_pci.ko|d' \
       -e '\|kernel/drivers/nvme/host/nvme-apple.ko|d' \
       -e '\|kernel/drivers/pwm/pwm-apple.ko|d' \
       -e '\|kernel/drivers/soc/apple/apple-mailbox.ko|d' \

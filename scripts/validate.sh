@@ -52,6 +52,8 @@ for module in \
   kernel/drivers/i2c/busses/i2c-pasemi-core.ko \
   kernel/drivers/i2c/busses/i2c-pasemi-platform.ko \
   kernel/drivers/mfd/macsmc.ko \
+  kernel/drivers/net/ethernet/intel/libie/libie_cp.ko \
+  kernel/drivers/net/ethernet/intel/libie/libie_pci.ko \
   kernel/drivers/nvme/host/nvme-apple.ko \
   kernel/drivers/pwm/pwm-apple.ko \
   kernel/drivers/soc/apple/apple-mailbox.ko \
