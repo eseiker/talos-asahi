@@ -61,7 +61,9 @@ for module in \
   kernel/drivers/soc/apple/apple-sart.ko \
   kernel/drivers/spi/spi-apple.ko \
   kernel/drivers/spmi/spmi-apple-controller.ko \
-  kernel/drivers/watchdog/apple_wdt.ko; do
+  kernel/drivers/watchdog/apple_wdt.ko \
+  kernel/drivers/net/ethernet/intel/libie/libie_cp.ko \
+  kernel/drivers/net/ethernet/intel/libie/libie_pci.ko; do
   reject_module "${asahi_modules}" "${module}"
 done
 
