@@ -35,6 +35,7 @@ case "${KERNEL_FLAVOR}" in
       -e '\|kernel/arch/arm64/lib/xor-neon.ko|d' \
       -e '\|kernel/crypto/hkdf.ko|d' \
       -e 's|kernel/crypto/xor.ko|kernel/lib/raid/xor/xor.ko|' \
+      -e 's|kernel/lib/raid6/raid6_pq.ko|kernel/lib/raid/raid6/raid6_pq.ko|' \
       -e '\|kernel/drivers/cpufreq/apple-soc-cpufreq.ko|d' \
       -e '\|kernel/drivers/gpio/gpio-macsmc.ko|d' \
       -e '\|kernel/drivers/i2c/busses/i2c-pasemi-core.ko|d' \
@@ -49,6 +50,7 @@ case "${KERNEL_FLAVOR}" in
       -e '\|kernel/drivers/spmi/spmi-apple-controller.ko|d' \
       -e '\|kernel/drivers/watchdog/apple_wdt.ko|d' \
       -e $'/kernel\\/drivers\\/net\\/ethernet\\/stmicro\\/stmmac\\/stmmac-pci\\.ko/a\\\nkernel/drivers/net/ethernet/stmicro/stmmac/stmmac_libpci.ko' \
+      -e $'/kernel\\/drivers\\/infiniband\\/core\\/ib_uverbs\\.ko/a\\\nkernel/drivers/infiniband/core/ib_uverbs_support.ko' \
       "${destination}/talos/hack/modules-arm64.txt"
     ;;
   mainline)
