@@ -31,6 +31,9 @@ case "${KERNEL_FLAVOR}" in
       -e "s/ASAHI_KERNEL_SHA512/${ASAHI_KERNEL_SHA512}/" \
       -e "s/ASAHI_KERNEL_SHA/${ASAHI_KERNEL_SHA}/" \
       "${destination}/pkgs/Pkgfile"
+    # Talos 1.14 lists modules for its Linux 6.18 kernel. Asahi 7.3 no longer
+    # builds DRM_VRAM_HELPER or the Open vSwitch GRE vport, and its idpf now
+    # selects libie_cp, which in turn needs libie_pci; 6.18 has neither.
     sed_in_place \
       -e '\|kernel/arch/arm64/lib/xor-neon.ko|d' \
       -e '\|kernel/crypto/hkdf.ko|d' \
@@ -49,6 +52,10 @@ case "${KERNEL_FLAVOR}" in
       -e '\|kernel/drivers/spi/spi-apple.ko|d' \
       -e '\|kernel/drivers/spmi/spmi-apple-controller.ko|d' \
       -e '\|kernel/drivers/watchdog/apple_wdt.ko|d' \
+      -e '\|kernel/drivers/gpu/drm/drm_vram_helper.ko|d' \
+      -e '\|kernel/net/openvswitch/vport-gre.ko|d' \
+      -e $'/kernel\\/drivers\\/net\\/ethernet\\/intel\\/libie\\/libie_adminq\\.ko/a\\\nkernel/drivers/net/ethernet/intel/libie/libie_cp.ko' \
+      -e $'/kernel\\/drivers\\/net\\/ethernet\\/intel\\/libie\\/libie_fwlog\\.ko/a\\\nkernel/drivers/net/ethernet/intel/libie/libie_pci.ko' \
       -e $'/kernel\\/drivers\\/net\\/ethernet\\/stmicro\\/stmmac\\/stmmac-pci\\.ko/a\\\nkernel/drivers/net/ethernet/stmicro/stmmac/stmmac_libpci.ko' \
       -e $'/kernel\\/drivers\\/infiniband\\/core\\/ib_uverbs\\.ko/a\\\nkernel/drivers/infiniband/core/ib_uverbs_support.ko' \
       "${destination}/talos/hack/modules-arm64.txt"
@@ -97,7 +104,11 @@ case "${KERNEL_FLAVOR}" in
       "${destination}/talos/hack/modules-arm64.txt"
     ;;
   v1.15)
+    # The pinned compatibility kernel does not build the AMD Pensando ionic
+    # drivers that Talos v1.14.6 started listing.
     sed_in_place \
+      -e '\|kernel/drivers/infiniband/hw/ionic/ionic_rdma.ko|d' \
+      -e '\|kernel/drivers/net/ethernet/pensando/ionic/ionic.ko|d' \
       -e '\|kernel/drivers/virtio/virtio_input.ko|d' \
       "${destination}/talos/hack/modules-arm64.txt"
     # The upstream v1.15 kernel builds the Apple platform storage chain as
