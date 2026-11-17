@@ -45,7 +45,9 @@ KERNEL_FLAVOR=v1.15 "${root}/scripts/prepare-sources.sh" "${validation_root}/v1.
 
 asahi_modules="${validation_root}/asahi/talos/hack/modules-arm64.txt"
 require_module "${asahi_modules}" kernel/lib/raid/xor/xor.ko
-require_module "${asahi_modules}" kernel/drivers/gpu/drm/drm_vram_helper.ko
+reject_module "${asahi_modules}" kernel/drivers/gpu/drm/drm_vram_helper.ko
+require_module "${asahi_modules}" kernel/drivers/net/ethernet/intel/libie/libie_cp.ko
+require_module "${asahi_modules}" kernel/drivers/net/ethernet/intel/libie/libie_pci.ko
 reject_module "${asahi_modules}" kernel/crypto/xor.ko
 for module in \
   kernel/drivers/cpufreq/apple-soc-cpufreq.ko \
@@ -53,8 +55,6 @@ for module in \
   kernel/drivers/i2c/busses/i2c-pasemi-core.ko \
   kernel/drivers/i2c/busses/i2c-pasemi-platform.ko \
   kernel/drivers/mfd/macsmc.ko \
-  kernel/drivers/net/ethernet/intel/libie/libie_cp.ko \
-  kernel/drivers/net/ethernet/intel/libie/libie_pci.ko \
   kernel/drivers/nvme/host/nvme-apple.ko \
   kernel/drivers/pwm/pwm-apple.ko \
   kernel/drivers/soc/apple/apple-mailbox.ko \
@@ -62,9 +62,7 @@ for module in \
   kernel/drivers/soc/apple/apple-sart.ko \
   kernel/drivers/spi/spi-apple.ko \
   kernel/drivers/spmi/spmi-apple-controller.ko \
-  kernel/drivers/watchdog/apple_wdt.ko \
-  kernel/drivers/net/ethernet/intel/libie/libie_cp.ko \
-  kernel/drivers/net/ethernet/intel/libie/libie_pci.ko; do
+  kernel/drivers/watchdog/apple_wdt.ko; do
   reject_module "${asahi_modules}" "${module}"
 done
 
@@ -103,10 +101,14 @@ fi
 v1_15_modules="${validation_root}/v1.15/talos/hack/modules-arm64.txt"
 for module in \
   kernel/drivers/acpi/apei/ghes-nvidia.ko \
+  kernel/drivers/firmware/efi/efi-pstore.ko \
   kernel/drivers/infiniband/core/ib_uverbs_support.ko \
+  kernel/drivers/infiniband/hw/ionic/ionic_rdma.ko \
+  kernel/drivers/misc/ntsync.ko \
   kernel/drivers/net/bonding/bonding.ko \
   kernel/drivers/net/ethernet/intel/libie/libie_cp.ko \
   kernel/drivers/net/ethernet/intel/libie/libie_pci.ko \
+  kernel/drivers/net/ethernet/pensando/ionic/ionic.ko \
   kernel/drivers/net/ethernet/stmicro/stmmac/stmmac_libpci.ko; do
   reject_module "${v1_15_modules}" "${module}"
 done
