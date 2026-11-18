@@ -40,8 +40,6 @@ case "${KERNEL_FLAVOR}" in
       -e '\|kernel/drivers/i2c/busses/i2c-pasemi-core.ko|d' \
       -e '\|kernel/drivers/i2c/busses/i2c-pasemi-platform.ko|d' \
       -e '\|kernel/drivers/mfd/macsmc.ko|d' \
-      -e '\|kernel/drivers/net/ethernet/intel/libie/libie_cp.ko|d' \
-      -e '\|kernel/drivers/net/ethernet/intel/libie/libie_pci.ko|d' \
       -e '\|kernel/drivers/nvme/host/nvme-apple.ko|d' \
       -e '\|kernel/drivers/pwm/pwm-apple.ko|d' \
       -e '\|kernel/drivers/soc/apple/apple-mailbox.ko|d' \
@@ -50,9 +48,6 @@ case "${KERNEL_FLAVOR}" in
       -e '\|kernel/drivers/spi/spi-apple.ko|d' \
       -e '\|kernel/drivers/spmi/spmi-apple-controller.ko|d' \
       -e '\|kernel/drivers/watchdog/apple_wdt.ko|d' \
-      -e $'/kernel\\/drivers\\/gpu\\/drm\\/drm_ttm_helper\\.ko/a\\\nkernel/drivers/gpu/drm/drm_vram_helper.ko' \
-      -e '\|kernel/drivers/net/ethernet/intel/libie/libie_cp.ko|d' \
-      -e '\|kernel/drivers/net/ethernet/intel/libie/libie_pci.ko|d' \
       -e $'/kernel\\/drivers\\/net\\/ethernet\\/stmicro\\/stmmac\\/stmmac-pci\\.ko/a\\\nkernel/drivers/net/ethernet/stmicro/stmmac/stmmac_libpci.ko' \
       "${destination}/talos/hack/modules-arm64.txt"
     ;;
@@ -100,12 +95,20 @@ case "${KERNEL_FLAVOR}" in
       "${destination}/talos/hack/modules-arm64.txt"
     ;;
   v1.15)
+    # The pinned Linux 6.18 compatibility kernel predates both the 7.3 module
+    # layout and the pkgs config behind Talos v1.15.0-beta.0's whitelist: it
+    # builds EFI vars pstore in and does not build NTSYNC or AMD Pensando
+    # ionic/ionic_rdma, so those entries would fail the depmod stage.
     sed_in_place \
       -e '\|kernel/drivers/acpi/apei/ghes-nvidia.ko|d' \
+      -e '\|kernel/drivers/firmware/efi/efi-pstore.ko|d' \
       -e '\|kernel/drivers/infiniband/core/ib_uverbs_support.ko|d' \
+      -e '\|kernel/drivers/infiniband/hw/ionic/ionic_rdma.ko|d' \
+      -e '\|kernel/drivers/misc/ntsync.ko|d' \
       -e '\|kernel/drivers/net/bonding/bonding.ko|d' \
       -e '\|kernel/drivers/net/ethernet/intel/libie/libie_cp.ko|d' \
       -e '\|kernel/drivers/net/ethernet/intel/libie/libie_pci.ko|d' \
+      -e '\|kernel/drivers/net/ethernet/pensando/ionic/ionic.ko|d' \
       -e '\|kernel/drivers/net/ethernet/stmicro/stmmac/stmmac_libpci.ko|d' \
       -e 's|kernel/lib/raid/raid6/raid6_pq.ko|kernel/lib/raid6/raid6_pq.ko|' \
       -e 's|kernel/lib/raid/xor/xor.ko|kernel/crypto/xor.ko|' \
