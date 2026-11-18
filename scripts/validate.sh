@@ -50,6 +50,10 @@ require_module "${asahi_modules}" kernel/lib/raid/raid6/raid6_pq.ko
 reject_module "${asahi_modules}" kernel/lib/raid6/raid6_pq.ko
 require_module "${asahi_modules}" kernel/drivers/infiniband/core/ib_uverbs.ko
 require_module "${asahi_modules}" kernel/drivers/infiniband/core/ib_uverbs_support.ko
+require_module "${asahi_modules}" kernel/drivers/net/ethernet/intel/libie/libie_cp.ko
+require_module "${asahi_modules}" kernel/drivers/net/ethernet/intel/libie/libie_pci.ko
+reject_module "${asahi_modules}" kernel/drivers/gpu/drm/drm_vram_helper.ko
+reject_module "${asahi_modules}" kernel/net/openvswitch/vport-gre.ko
 for module in \
   kernel/drivers/cpufreq/apple-soc-cpufreq.ko \
   kernel/drivers/gpio/gpio-macsmc.ko \
@@ -100,6 +104,8 @@ done
 
 v1_15_modules="${validation_root}/v1.15/talos/hack/modules-arm64.txt"
 reject_module "${v1_15_modules}" kernel/drivers/virtio/virtio_input.ko
+reject_module "${v1_15_modules}" kernel/drivers/infiniband/hw/ionic/ionic_rdma.ko
+reject_module "${v1_15_modules}" kernel/drivers/net/ethernet/pensando/ionic/ionic.ko
 for module in \
   kernel/drivers/nvme/host/nvme-apple.ko \
   kernel/drivers/soc/apple/apple-rtkit.ko \
