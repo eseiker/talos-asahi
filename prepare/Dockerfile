@@ -28,7 +28,7 @@ FROM ${ALPINE_IMAGE} AS packer
 
 RUN apk add --no-cache \
       cpio=2.15-r0 \
-      zstd=1.5.7-r2
+      zstd=1.6.0-r1
 
 COPY --from=rootfs / /rootfs
 
@@ -50,7 +50,7 @@ FROM ${ALPINE_IMAGE} AS tools
 
 RUN apk add --no-cache \
       binutils=2.45.1-r0 \
-      zstd=1.5.7-r2 \
+      zstd=1.6.0-r1 \
       zip=3.0-r13
 
 COPY --from=packer /prepare-initramfs.zst /prepare-initramfs.zst
