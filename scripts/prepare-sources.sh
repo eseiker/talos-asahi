@@ -14,6 +14,14 @@ clone_pinned https://github.com/siderolabs/talos.git "${TALOS_SHA}" "${destinati
 clone_pinned https://github.com/siderolabs/pkgs.git "${PKGS_SHA}" "${destination}/pkgs"
 
 apply_patch_checked "${destination}/talos" "${root}/patches/talos-asahi.patch"
+# Backport siderolabs/talos 72085fbf4 ("chore: bump dis-vulncheck") until the
+# pinned Talos release carries it. The older dis-vulncheck pulled in the
+# ONSdigital module chain, whose github.com/ONSdigital/dp-mocking dependency was
+# deleted upstream and is no longer served by the Go proxy, so `go mod download`
+# in Talos' build-go stage fails for every target.
+if grep -Fq 'github.com/ONSdigital/' "${destination}/talos/tools/go.mod"; then
+  apply_patch_checked "${destination}/talos" "${root}/patches/talos-tools-dis-vulncheck.patch"
+fi
 case "${KERNEL_FLAVOR}" in
   asahi)
     apply_patch_checked "${destination}/pkgs" "${root}/patches/pkgs-asahi.patch"

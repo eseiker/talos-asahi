@@ -1,0 +1,66 @@
+diff --git a/tools/go.mod b/tools/go.mod
+index 5b9621a..f7de8a6 100644
+--- a/tools/go.mod
++++ b/tools/go.mod
+@@ -103,9 +103,6 @@ require (
+ 	github.com/Microsoft/go-winio v0.6.3-0.20251027160822-ad3df93bed29 // indirect
+ 	github.com/Microsoft/hcsshim v0.15.0-rc.3 // indirect
+ 	github.com/MirrexOne/unqueryvet v1.5.4 // indirect
+-	github.com/ONSdigital/dp-api-clients-go/v2 v2.282.0 // indirect
+-	github.com/ONSdigital/dp-net/v3 v3.11.0 // indirect
+-	github.com/ONSdigital/log.go/v2 v2.5.2 // indirect
+ 	github.com/OneOfOne/xxhash v1.2.8 // indirect
+ 	github.com/OpenPeeDeeP/depguard/v2 v2.2.1 // indirect
+ 	github.com/ProtonMail/go-crypto v1.4.1 // indirect
+@@ -336,7 +333,6 @@ require (
+ 	github.com/hashicorp/hcl/v2 v2.24.0 // indirect
+ 	github.com/henvic/httpretty v0.1.4 // indirect
+ 	github.com/hexops/gotextdiff v1.0.3 // indirect
+-	github.com/hokaccha/go-prettyjson v0.0.0-20211117102719-0474bc63780f // indirect
+ 	github.com/huandu/xstrings v1.5.0 // indirect
+ 	github.com/iancoleman/strcase v0.3.0 // indirect
+ 	github.com/imdario/mergo v0.3.16 // indirect
+@@ -482,7 +478,7 @@ require (
+ 	github.com/segmentio/asm v1.2.1 // indirect
+ 	github.com/segmentio/encoding v0.5.4 // indirect
+ 	github.com/sergi/go-diff v1.4.0 // indirect
+-	github.com/shanduur/dis-vulncheck v0.0.0-20260708185140-0c30eb543ad8 // indirect
++	github.com/shanduur/dis-vulncheck v0.0.0-20261125101115-22f75d7796f5 // indirect
+ 	github.com/shopspring/decimal v1.4.0 // indirect
+ 	github.com/siderolabs/deep-copy v0.5.8 // indirect
+ 	github.com/siderolabs/gen v0.8.7 // indirect
+diff --git a/tools/go.sum b/tools/go.sum
+index d61f91c..9b47dbf 100644
+--- a/tools/go.sum
++++ b/tools/go.sum
+@@ -184,12 +184,6 @@ github.com/Microsoft/hcsshim v0.15.0-rc.3 h1:ZTNzOp0QwJ1EiL3zopSOawIG0j7zAvzJx0r
+ github.com/Microsoft/hcsshim v0.15.0-rc.3/go.mod h1:VhDiwXgb8cEJxO9H57YL4NNIYqvZKpqvSDcimLyo7m8=
+ github.com/MirrexOne/unqueryvet v1.5.4 h1:38QOxShO7JmMWT+eCdDMbcUgGCOeJphVkzzRgyLJgsQ=
+ github.com/MirrexOne/unqueryvet v1.5.4/go.mod h1:fs9Zq6eh1LRIhsDIsxf9PONVUjYdFHdtkHIgZdJnyPU=
+-github.com/ONSdigital/dp-api-clients-go/v2 v2.282.0 h1:9eR5jGMrJ7FIuALydLISRXefaZFnTvGxvX/ni7OlDNc=
+-github.com/ONSdigital/dp-api-clients-go/v2 v2.282.0/go.mod h1:vniCZ0iYfIQ5llsBigUS2khr8cSN1eXEsOKGYlopWHI=
+-github.com/ONSdigital/dp-net/v3 v3.11.0 h1:oLaP0cFem0KKvxeg9ozPUux5yCGRUWlB+XQPEtzt6yU=
+-github.com/ONSdigital/dp-net/v3 v3.11.0/go.mod h1:ur4LLCvd2xW2jpa785pElE6HB2bPvszZxdAjqv0XFGg=
+-github.com/ONSdigital/log.go/v2 v2.5.2 h1:V6NYtbi+thHYTwckxOXPklZUgQCNBo1/fyPPIutu4V4=
+-github.com/ONSdigital/log.go/v2 v2.5.2/go.mod h1:KZNEweCUHD8dKwhlvoRvgd2Y2aUIuU3H9/MmbFyVzW8=
+ github.com/OneOfOne/xxhash v1.2.2/go.mod h1:HSdplMjZKSmBqAxg5vPj2TmRDmfkzw+cTzAElWljhcU=
+ github.com/OneOfOne/xxhash v1.2.8 h1:31czK/TI9sNkxIKfaUfGlU47BAxQ0ztGgd9vPyqimf8=
+ github.com/OneOfOne/xxhash v1.2.8/go.mod h1:eZbhyaAYD41SGSSsnmcpxVoRiQ/MPUTjUdIIOT9Um7Q=
+@@ -954,8 +948,6 @@ github.com/henvic/httpretty v0.1.4 h1:Jo7uwIRWVFxkqOnErcoYfH90o3ddQyVrSANeS4cxYm
+ github.com/henvic/httpretty v0.1.4/go.mod h1:Dn60sQTZfbt2dYsdUSNsCljyF4AfdqnuJFDLJA1I4AM=
+ github.com/hexops/gotextdiff v1.0.3 h1:gitA9+qJrrTCsiCl7+kh75nPqQt1cx4ZkudSTLoUqJM=
+ github.com/hexops/gotextdiff v1.0.3/go.mod h1:pSWU5MAI3yDq+fZBTazCSJysOMbxWL1BSow5/V2vxeg=
+-github.com/hokaccha/go-prettyjson v0.0.0-20211117102719-0474bc63780f h1:7LYC+Yfkj3CTRcShK0KOL/w6iTiKyqqBA9a41Wnggw8=
+-github.com/hokaccha/go-prettyjson v0.0.0-20211117102719-0474bc63780f/go.mod h1:pFlLw2CfqZiIBOx6BuCeRLCrfxBJipTY0nIOF/VbGcI=
+ github.com/huandu/xstrings v1.5.0 h1:2ag3IFq9ZDANvthTwTiqSSZLjDc+BedvHPAp5tJy2TI=
+ github.com/huandu/xstrings v1.5.0/go.mod h1:y5/lhBue+AyNmUVz9RLU9xbLR0o4KIIExikq4ovT0aE=
+ github.com/iancoleman/strcase v0.2.0/go.mod h1:iwCmte+B7n89clKwxIoIXy/HfoL7AsD47ZCWhYzw7ho=
+@@ -1389,7 +1381,7 @@ github.com/sergi/go-diff v1.1.0/go.mod h1:STckp+ISIX8hZLjrqAeVduY0gWCT9IjLuqbuNX
+ github.com/sergi/go-diff v1.2.0/go.mod h1:STckp+ISIX8hZLjrqAeVduY0gWCT9IjLuqbuNXdaHfM=
+ github.com/sergi/go-diff v1.4.0 h1:n/SP9D5ad1fORl+llWyN+D6qoUETXNZARKjyY2/KVCw=
+ github.com/sergi/go-diff v1.4.0/go.mod h1:A0bzQcvG0E7Rwjx0REVgAGH58e96+X0MeOfepqsbeW4=
+-github.com/shanduur/dis-vulncheck v0.0.0-20260708185140-0c30eb543ad8 h1:juhM2oFjR4I+PMe9YQ4ONJLXdKD1Pc+x5OJiHLZiXAk=
++github.com/shanduur/dis-vulncheck v0.0.0-20261125101115-22f75d7796f5 h1:g5DbiHJX6WhkNP80aPmyaMhEpolK7x1tv8lxo96GbfI=
+ github.com/shanduur/dis-vulncheck v0.0.0-20260708185140-0c30eb543ad8/go.mod h1:emZAda0JjevA3xPV6MAESKv4PVgEblnVOz3JwDoiRuU=
+ github.com/shopspring/decimal v1.3.1/go.mod h1:DKyhrW/HYNuLGql+MJL6WCR6knT2jwCFRcu2hWCYk4o=
+ github.com/shopspring/decimal v1.4.0 h1:bxl37RwXBklmTi0C79JfXCEBD1cqqHt0bbgBAGFp81k=
