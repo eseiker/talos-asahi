@@ -43,6 +43,13 @@ KERNEL_FLAVOR=mainline "${root}/scripts/prepare-sources.sh" "${validation_root}/
 KERNEL_FLAVOR=mainline-4k "${root}/scripts/prepare-sources.sh" "${validation_root}/mainline-4k"
 KERNEL_FLAVOR=v1.15 "${root}/scripts/prepare-sources.sh" "${validation_root}/v1.15"
 
+for flavor in asahi mainline mainline-4k v1.15; do
+  if grep -Fq 'github.com/ONSdigital/' "${validation_root}/${flavor}/talos/tools/go.mod"; then
+    printf '%s Talos tools module still requires the unavailable ONSdigital modules\n' "${flavor}" >&2
+    exit 1
+  fi
+done
+
 asahi_modules="${validation_root}/asahi/talos/hack/modules-arm64.txt"
 require_module "${asahi_modules}" kernel/lib/raid/xor/xor.ko
 reject_module "${asahi_modules}" kernel/crypto/xor.ko
